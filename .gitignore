@@ -1,0 +1,3 @@
+bootstrap_out/*
+!bootstrap_out/DoNotRemove.md
+*.tar

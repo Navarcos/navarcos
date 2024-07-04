@@ -1,0 +1,5 @@
+---
+providers:
+  - name: incluster
+    url: https://github.com/kubernetes-sigs/cluster-api-ipam-provider-in-cluster/releases/latest/ipam-components.yaml
+    type: IPAMProvider

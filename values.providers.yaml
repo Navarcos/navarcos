@@ -1,0 +1,37 @@
+clusterapi:
+  capi:
+    targetRevision: v1.6.3
+  vsphere:
+    targetRevision: v1.9.3
+    vsphereCPI:
+      targetRevision: 1.26.0
+    vsphereCSI:
+      targetRevision: 3.0.1
+  azure:
+    targetRevision: v1.12.1
+    azureCPI:
+      targetRevision: 1.27.5
+    azureCSI:
+      targetRevision: 1.27.1
+  certManager:
+    targetRevision: v1.14.2
+  ipam:
+    targetRevision: v0.1.0
+  tigera:
+    targetRevision: 3.26.4
+
+navarcos:
+  ingressNginx:
+    targetRevision: 4.5.2
+  oauth2Proxy:
+    targetRevision: 6.12.2
+  prometheus:
+    targetRevision: 50.3.1
+  keycloak:
+    targetRevision: 16.1.7
+  kubernetesDashboard:
+    targetRevision: 6.0.8
+  kubeVIP:
+    targetRevision: 0.5.12
+  metricsServer:
+    targetRevision: 3.11.0

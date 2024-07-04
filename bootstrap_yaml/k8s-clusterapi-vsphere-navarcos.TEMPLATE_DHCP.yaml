@@ -1,0 +1,266 @@
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: ${K8S_CLUSTER_NAME}
+    navarcos.io/navarcos: 'true'
+  name: ${K8S_CLUSTER_NAME}
+  namespace: default
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 192.168.0.0/16
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: KubeadmControlPlane
+    name: ${K8S_CLUSTER_NAME}
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: VSphereCluster
+    name: ${K8S_CLUSTER_NAME}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: VSphereCluster
+metadata:
+  name: ${K8S_CLUSTER_NAME}
+  namespace: default
+spec:
+  controlPlaneEndpoint:
+    host: ${CONTROL_PLANE_ENDPOINT_IP}
+    port: 6443
+  identityRef:
+    kind: Secret
+    name: ${K8S_CLUSTER_NAME}
+  server: ${VSPHERE_SERVER}
+  thumbprint: ${VSPHERE_TLS_THUMBPRINT}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: VSphereMachineTemplate
+metadata:
+  name: ${K8S_CLUSTER_NAME}
+  namespace: default
+spec:
+  template:
+    spec:
+      cloneMode: fullClone
+      datacenter: ${VSPHERE_DATACENTER}
+      datastore: ${VSPHERE_DATASTORE}
+      diskGiB: ${K8S_MASTER_DISK}
+      folder: ${VSPHERE_FOLDER}
+      memoryMiB: ${K8S_MASTER_MEM}
+      network:
+        devices:
+        - dhcp4: true
+          networkName: ${VSPHERE_NETWORK}
+      numCPUs: ${K8S_MASTER_CPUS}
+      os: Linux
+      resourcePool: ${VSPHERE_RESOURCE_POOL}
+      server: ${VSPHERE_SERVER}
+      storagePolicyName: ${VSPHERE_STORAGE_POLICY}
+      template: ${VSPHERE_TEMPLATE}
+      thumbprint: ${VSPHERE_TLS_THUMBPRINT}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: VSphereMachineTemplate
+metadata:
+  name: ${K8S_CLUSTER_NAME}-worker
+  namespace: default
+spec:
+  template:
+    spec:
+      cloneMode: fullClone
+      datacenter: ${VSPHERE_DATACENTER}
+      datastore: ${VSPHERE_DATASTORE}
+      diskGiB: ${K8S_WORKER_DISK}
+      folder: ${VSPHERE_FOLDER}
+      memoryMiB: ${K8S_WORKER_MEM}
+      network:
+        devices:
+        - dhcp4: true
+          networkName: ${VSPHERE_NETWORK}
+      numCPUs: ${K8S_WORKER_CPUS}
+      os: Linux
+      resourcePool: ${VSPHERE_RESOURCE_POOL}
+      server: ${VSPHERE_SERVER}
+      storagePolicyName: ${VSPHERE_STORAGE_POLICY}
+      template: ${VSPHERE_TEMPLATE}
+      thumbprint: ${VSPHERE_TLS_THUMBPRINT}
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${K8S_CLUSTER_NAME}
+  namespace: default
+spec:
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+        extraArgs:
+          cloud-provider: external
+      controllerManager:
+        extraArgs:
+          cloud-provider: external
+    files:
+    - content: |
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          creationTimestamp: null
+          name: kube-vip
+          namespace: kube-system
+        spec:
+          containers:
+          - args:
+            - manager
+            env:
+            - name: cp_enable
+              value: "true"
+            - name: vip_interface
+              value: eth0
+            - name: address
+              value: ${CONTROL_PLANE_ENDPOINT_IP}
+            - name: port
+              value: "6443"
+            - name: vip_arp
+              value: "true"
+            - name: vip_leaderelection
+              value: "true"
+            - name: vip_leaseduration
+              value: "15"
+            - name: vip_renewdeadline
+              value: "10"
+            - name: vip_retryperiod
+              value: "2"
+            image: ghcr.io/kube-vip/kube-vip:v0.5.11
+            imagePullPolicy: IfNotPresent
+            name: kube-vip
+            resources: {}
+            securityContext:
+              capabilities:
+                add:
+                - NET_ADMIN
+                - NET_RAW
+            volumeMounts:
+            - mountPath: /etc/kubernetes/admin.conf
+              name: kubeconfig
+          hostAliases:
+          - hostnames:
+            - kubernetes
+            ip: 127.0.0.1
+          hostNetwork: true
+          volumes:
+          - hostPath:
+              path: /etc/kubernetes/admin.conf
+              type: FileOrCreate
+            name: kubeconfig
+        status: {}
+      owner: root:root
+      path: /etc/kubernetes/manifests/kube-vip.yaml
+    initConfiguration:
+      nodeRegistration:
+        criSocket: /var/run/containerd/containerd.sock
+        kubeletExtraArgs:
+          cloud-provider: external
+        name: '{{ local_hostname }}'
+    joinConfiguration:
+      nodeRegistration:
+        criSocket: /var/run/containerd/containerd.sock
+        kubeletExtraArgs:
+          cloud-provider: external
+        name: '{{ local_hostname }}'
+    preKubeadmCommands:
+    - hostnamectl set-hostname "{{ ds.meta_data.hostname }}"
+    - echo "::1         ipv6-localhost ipv6-loopback localhost6 localhost6.localdomain6"
+      >/etc/hosts
+    - echo "127.0.0.1   {{ ds.meta_data.hostname }} {{ local_hostname }} localhost
+      localhost.localdomain localhost4 localhost4.localdomain4" >>/etc/hosts
+    - sed -i 's/#DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf
+    - ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+    - mkdir /etc/containerd/certs.d
+    - echo '[plugins."io.containerd.grpc.v1.cri".registry]' >> /etc/containerd/config.toml
+    - echo '   config_path = "/etc/containerd/certs.d"' >> /etc/containerd/config.toml
+    - systemctl restart containerd
+    users:
+    - name: capv
+      sshAuthorizedKeys:
+      - ${VSPHERE_SSH_AUTHORIZED_KEY}
+      sudo: ALL=(ALL) NOPASSWD:ALL
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: VSphereMachineTemplate
+      name: ${K8S_CLUSTER_NAME}
+  replicas: ${K8S_MASTER_NODES}
+  version: ${K8S_VERSION}
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: ${K8S_CLUSTER_NAME}-md-0
+  namespace: default
+spec:
+  template:
+    spec:
+      joinConfiguration:
+        nodeRegistration:
+          criSocket: /var/run/containerd/containerd.sock
+          kubeletExtraArgs:
+            cloud-provider: external
+          name: '{{ local_hostname }}'
+      preKubeadmCommands:
+      - hostnamectl set-hostname "{{ ds.meta_data.hostname }}"
+      - echo "::1         ipv6-localhost ipv6-loopback localhost6 localhost6.localdomain6"
+        >/etc/hosts
+      - echo "127.0.0.1   {{ ds.meta_data.hostname }} {{ local_hostname }} localhost
+        localhost.localdomain localhost4 localhost4.localdomain4" >>/etc/hosts
+      - sed -i 's/#DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf
+      - ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+      - mkdir /etc/containerd/certs.d
+      - echo '[plugins."io.containerd.grpc.v1.cri".registry]' >> /etc/containerd/config.toml
+      - echo '   config_path = "/etc/containerd/certs.d"' >> /etc/containerd/config.toml
+      - systemctl restart containerd
+      users:
+      - name: capv
+        sshAuthorizedKeys:
+        - ${VSPHERE_SSH_AUTHORIZED_KEY}
+        sudo: ALL=(ALL) NOPASSWD:ALL
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: ${K8S_CLUSTER_NAME}
+  name: ${K8S_CLUSTER_NAME}-md-0
+  namespace: default
+spec:
+  clusterName: ${K8S_CLUSTER_NAME}
+  replicas: ${K8S_WORKER_NODES}
+  selector:
+    matchLabels: {}
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: ${K8S_CLUSTER_NAME}
+    spec:
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+          name: ${K8S_CLUSTER_NAME}-md-0
+      clusterName: ${K8S_CLUSTER_NAME}
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: VSphereMachineTemplate
+        name: ${K8S_CLUSTER_NAME}-worker
+      version: ${K8S_VERSION}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${K8S_CLUSTER_NAME}
+  namespace: default
+stringData:
+  password: ${VSPHERE_PASSWORD}
+  username: ${VSPHERE_USERNAME}

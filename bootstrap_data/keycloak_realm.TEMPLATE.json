@@ -1,0 +1,551 @@
+{
+    "realm": "Navarcos",
+    "enabled": true,
+    "sslRequired": "all",
+    "eventsEnabled": true,
+    "eventsExpiration": 864000,
+    "eventsListeners": [
+      "jboss-logging"
+    ],
+    "enabledEventTypes": [
+      "SEND_RESET_PASSWORD",
+      "UPDATE_CONSENT_ERROR",
+      "GRANT_CONSENT",
+      "VERIFY_PROFILE_ERROR",
+      "REMOVE_TOTP",
+      "REVOKE_GRANT",
+      "UPDATE_TOTP",
+      "LOGIN_ERROR",
+      "CLIENT_LOGIN",
+      "RESET_PASSWORD_ERROR",
+      "IMPERSONATE_ERROR",
+      "CODE_TO_TOKEN_ERROR",
+      "CUSTOM_REQUIRED_ACTION",
+      "OAUTH2_DEVICE_CODE_TO_TOKEN_ERROR",
+      "RESTART_AUTHENTICATION",
+      "IMPERSONATE",
+      "UPDATE_PROFILE_ERROR",
+      "LOGIN",
+      "OAUTH2_DEVICE_VERIFY_USER_CODE",
+      "UPDATE_PASSWORD_ERROR",
+      "CLIENT_INITIATED_ACCOUNT_LINKING",
+      "TOKEN_EXCHANGE",
+      "AUTHREQID_TO_TOKEN",
+      "LOGOUT",
+      "REGISTER",
+      "DELETE_ACCOUNT_ERROR",
+      "CLIENT_REGISTER",
+      "IDENTITY_PROVIDER_LINK_ACCOUNT",
+      "DELETE_ACCOUNT",
+      "UPDATE_PASSWORD",
+      "CLIENT_DELETE",
+      "FEDERATED_IDENTITY_LINK_ERROR",
+      "IDENTITY_PROVIDER_FIRST_LOGIN",
+      "CLIENT_DELETE_ERROR",
+      "VERIFY_EMAIL",
+      "CLIENT_LOGIN_ERROR",
+      "RESTART_AUTHENTICATION_ERROR",
+      "EXECUTE_ACTIONS",
+      "REMOVE_FEDERATED_IDENTITY_ERROR",
+      "TOKEN_EXCHANGE_ERROR",
+      "PERMISSION_TOKEN",
+      "SEND_IDENTITY_PROVIDER_LINK_ERROR",
+      "EXECUTE_ACTION_TOKEN_ERROR",
+      "SEND_VERIFY_EMAIL",
+      "OAUTH2_DEVICE_AUTH",
+      "EXECUTE_ACTIONS_ERROR",
+      "REMOVE_FEDERATED_IDENTITY",
+      "OAUTH2_DEVICE_CODE_TO_TOKEN",
+      "IDENTITY_PROVIDER_POST_LOGIN",
+      "IDENTITY_PROVIDER_LINK_ACCOUNT_ERROR",
+      "OAUTH2_DEVICE_VERIFY_USER_CODE_ERROR",
+      "UPDATE_EMAIL",
+      "REGISTER_ERROR",
+      "REVOKE_GRANT_ERROR",
+      "EXECUTE_ACTION_TOKEN",
+      "LOGOUT_ERROR",
+      "UPDATE_EMAIL_ERROR",
+      "CLIENT_UPDATE_ERROR",
+      "AUTHREQID_TO_TOKEN_ERROR",
+      "UPDATE_PROFILE",
+      "CLIENT_REGISTER_ERROR",
+      "FEDERATED_IDENTITY_LINK",
+      "SEND_IDENTITY_PROVIDER_LINK",
+      "SEND_VERIFY_EMAIL_ERROR",
+      "RESET_PASSWORD",
+      "CLIENT_INITIATED_ACCOUNT_LINKING_ERROR",
+      "OAUTH2_DEVICE_AUTH_ERROR",
+      "UPDATE_CONSENT",
+      "REMOVE_TOTP_ERROR",
+      "VERIFY_EMAIL_ERROR",
+      "SEND_RESET_PASSWORD_ERROR",
+      "CLIENT_UPDATE",
+      "CUSTOM_REQUIRED_ACTION_ERROR",
+      "IDENTITY_PROVIDER_POST_LOGIN_ERROR",
+      "UPDATE_TOTP_ERROR",
+      "CODE_TO_TOKEN",
+      "VERIFY_PROFILE",
+      "GRANT_CONSENT_ERROR",
+      "IDENTITY_PROVIDER_FIRST_LOGIN_ERROR"
+    ],
+    "adminEventsEnabled": true,
+    "adminEventsDetailsEnabled": false,
+    "attributes": {
+      "adminEventsExpiration": "864000"
+    },
+    "roles": {
+      "realm": [
+        {
+          "name": "navarcos_opensearch",
+          "description": "",
+          "composite": false,
+          "clientRole": false,
+          "attributes": {}
+        },
+        {
+          "name": "navarcos_oauth",
+          "description": "",
+          "composite": false,
+          "clientRole": false,
+          "attributes": {}
+        },        {
+          "name": "navarcos_admin",
+          "description": "",
+          "composite": false,
+          "clientRole": false,
+          "attributes": {}
+        }
+      ],
+      "client": {
+        "harbor-navarcos": [],
+        "gitlab-navarcos": []
+      }
+    },
+    "groups": [
+      {
+        "name": "realm_admin",
+        "path": "/realm_admin",
+        "attributes": {},
+        "realmRoles": [
+          "navarcos_opensearch",
+          "navarcos_admin"
+        ],
+        "clientRoles": {
+          "realm-management": [
+            "realm-admin"
+          ]
+        },
+        "subGroups": []
+      }
+    ],
+    "requiredCredentials": [
+      "password"
+    ],
+    "clients": [
+      {
+        "clientId": "plancia-backend",
+        "name": "plancia-backend",
+        "description": "",
+        "rootUrl": "${NAVARCOS_PLANCIA_BE_URL}",
+        "adminUrl": "",
+        "baseUrl": "/",
+        "surrogateAuthRequired": false,
+        "enabled": true,
+        "alwaysDisplayInConsole": false,
+        "clientAuthenticatorType": "client-secret",
+        "redirectUris": [
+          "/users/auth/openid_connect/callback"
+        ],
+        "webOrigins": [
+          "/*"
+        ],
+        "notBefore": 0,
+        "bearerOnly": false,
+        "consentRequired": false,
+        "authorizationServicesEnabled": true,
+        "standardFlowEnabled": true,
+        "implicitFlowEnabled": false,
+        "directAccessGrantsEnabled": false,
+        "serviceAccountsEnabled": true,
+        "publicClient": false,
+        "frontchannelLogout": true,
+        "protocol": "openid-connect",
+        "attributes": {
+          "oidc.ciba.grant.enabled": "false",
+          "backchannel.logout.session.required": "true",
+          "display.on.consent.screen": "false",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "backchannel.logout.revoke.offline.tokens": "false"
+        },
+        "authenticationFlowBindingOverrides": {},
+        "fullScopeAllowed": true,
+        "nodeReRegistrationTimeout": -1,
+        "defaultClientScopes": [
+          "web-origins",
+          "acr",
+          "profile",
+          "roles",
+          "email",
+          "microprofile-jwt"
+        ],
+        "optionalClientScopes": [
+          "address",
+          "phone",
+          "offline_access"
+        ]
+      },
+      {
+        "clientId": "plancia",
+        "name": "plancia",
+        "description": "",
+        "rootUrl": "${NAVARCOS_PLANCIA_FE_URL}",
+        "adminUrl": "",
+        "baseUrl": "/",
+        "surrogateAuthRequired": false,
+        "enabled": true,
+        "alwaysDisplayInConsole": false,
+        "clientAuthenticatorType": "client-secret",
+        "redirectUris": [
+          "/*"
+        ],
+        "webOrigins": [
+          "${NAVARCOS_PLANCIA_FE_URL}"
+        ],
+        "notBefore": 0,
+        "bearerOnly": false,
+        "consentRequired": true,
+        "standardFlowEnabled": true,
+        "implicitFlowEnabled": false,
+        "directAccessGrantsEnabled": false,
+        "serviceAccountsEnabled": false,
+        "publicClient": true,
+        "frontchannelLogout": true,
+        "protocol": "openid-connect",
+        "attributes": {
+          "oidc.ciba.grant.enabled": "false",
+          "backchannel.logout.session.required": "true",
+          "display.on.consent.screen": "false",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "backchannel.logout.revoke.offline.tokens": "false"
+        },
+        "authenticationFlowBindingOverrides": {},
+        "fullScopeAllowed": true,
+        "nodeReRegistrationTimeout": -1,
+        "protocolMappers": [
+          {
+            "name": "plancia-backend",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper",
+            "consentRequired": false,
+            "config": {
+              "included.client.audience": "plancia-backend",
+              "id.token.claim": "true",
+              "access.token.claim": "true"
+            }
+          }
+        ],
+        "defaultClientScopes": [
+          "web-origins",
+          "acr",
+          "profile",
+          "roles",
+          "email",
+          "microprofile-jwt"
+        ],
+        "optionalClientScopes": [
+          "address",
+          "phone",
+          "offline_access"
+        ]
+      },
+      {
+        "clientId": "gitlab-navarcos",
+        "name": "gitlab-navarcos",
+        "description": "",
+        "rootUrl": "${NAVARCOS_GITLAB_URL}",
+        "adminUrl": "",
+        "baseUrl": "/",
+        "surrogateAuthRequired": false,
+        "enabled": true,
+        "alwaysDisplayInConsole": false,
+        "clientAuthenticatorType": "client-secret",
+        "redirectUris": [
+          "/users/auth/openid_connect/callback"
+        ],
+        "webOrigins": [
+          "/*"
+        ],
+        "notBefore": 0,
+        "bearerOnly": false,
+        "consentRequired": true,
+        "standardFlowEnabled": true,
+        "implicitFlowEnabled": false,
+        "directAccessGrantsEnabled": false,
+        "serviceAccountsEnabled": false,
+        "publicClient": false,
+        "frontchannelLogout": true,
+        "protocol": "openid-connect",
+        "attributes": {
+          "oidc.ciba.grant.enabled": "false",
+          "backchannel.logout.session.required": "true",
+          "display.on.consent.screen": "false",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "backchannel.logout.revoke.offline.tokens": "false"
+        },
+        "authenticationFlowBindingOverrides": {},
+        "fullScopeAllowed": true,
+        "nodeReRegistrationTimeout": -1,
+        "defaultClientScopes": [
+          "web-origins",
+          "acr",
+          "profile",
+          "roles",
+          "email",
+          "microprofile-jwt"
+        ],
+        "optionalClientScopes": [
+          "address",
+          "phone",
+          "offline_access"
+        ]
+      },
+      {
+        "clientId": "opensearch-navarcos",
+        "name": "opensearch-navarcos",
+        "description": "",
+        "rootUrl": "${NAVARCOS_OPENSEARCH_URL}",
+        "adminUrl": "",
+        "baseUrl": "/",
+        "surrogateAuthRequired": false,
+        "enabled": true,
+        "alwaysDisplayInConsole": false,
+        "clientAuthenticatorType": "client-secret",
+        "redirectUris": [
+          "/auth/openid/login"
+        ],
+        "webOrigins": [
+          "/*"
+        ],
+        "notBefore": 0,
+        "bearerOnly": false,
+        "consentRequired": true,
+        "standardFlowEnabled": true,
+        "implicitFlowEnabled": false,
+        "directAccessGrantsEnabled": false,
+        "serviceAccountsEnabled": false,
+        "publicClient": false,
+        "frontchannelLogout": true,
+        "protocol": "openid-connect",
+        "attributes": {
+          "oidc.ciba.grant.enabled": "false",
+          "backchannel.logout.session.required": "true",
+          "display.on.consent.screen": "false",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "backchannel.logout.revoke.offline.tokens": "false"
+        },
+        "authenticationFlowBindingOverrides": {},
+        "fullScopeAllowed": true,
+        "nodeReRegistrationTimeout": -1,
+        "defaultClientScopes": [
+          "web-origins",
+          "acr",
+          "profile",
+          "roles",
+          "email",
+          "microprofile-jwt"
+        ],
+        "optionalClientScopes": [
+          "address",
+          "phone",
+          "offline_access"
+        ]
+      },
+      {
+        "clientId": "oauth2proxy-navarcos",
+        "name": "oauth2proxy-navarcos",
+        "description": "",
+        "rootUrl": "${NAVARCOS_OAUTH2PROXY_URL}",
+        "adminUrl": "",
+        "baseUrl": "/",
+        "surrogateAuthRequired": false,
+        "enabled": true,
+        "alwaysDisplayInConsole": false,
+        "clientAuthenticatorType": "client-secret",
+        "redirectUris": [
+          "${NAVARCOS_DASHBOARDS_URL}/*",
+          "${NAVARCOS_OAUTH2PROXY_URL}/*"
+        ],
+        "webOrigins": [
+          "/*"
+        ],
+        "notBefore": 0,
+        "bearerOnly": false,
+        "consentRequired": true,
+        "standardFlowEnabled": true,
+        "implicitFlowEnabled": false,
+        "directAccessGrantsEnabled": false,
+        "serviceAccountsEnabled": false,
+        "publicClient": false,
+        "frontchannelLogout": true,
+        "protocol": "openid-connect",
+        "attributes": {
+          "oidc.ciba.grant.enabled": "false",
+          "backchannel.logout.session.required": "true",
+          "display.on.consent.screen": "false",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "backchannel.logout.revoke.offline.tokens": "false"
+        },
+        "authenticationFlowBindingOverrides": {},
+        "fullScopeAllowed": true,
+        "nodeReRegistrationTimeout": -1,
+        "defaultClientScopes": [
+          "web-origins",
+          "acr",
+          "profile",
+          "roles",
+          "email",
+          "microprofile-jwt"
+        ],
+        "optionalClientScopes": [
+          "address",
+          "phone",
+          "offline_access"
+        ]
+      },
+      {
+        "clientId": "grafana-navarcos",
+        "name": "grafana-navarcos",
+        "description": "",
+        "rootUrl": "${NAVARCOS_GRAFANA_URL}",
+        "adminUrl": "",
+        "baseUrl": "/",
+        "surrogateAuthRequired": false,
+        "enabled": true,
+        "alwaysDisplayInConsole": false,
+        "clientAuthenticatorType": "client-secret",
+        "redirectUris": [
+          "/c/oidc/callback"
+        ],
+        "webOrigins": [
+          "/*"
+        ],
+        "notBefore": 0,
+        "bearerOnly": false,
+        "consentRequired": true,
+        "standardFlowEnabled": true,
+        "implicitFlowEnabled": false,
+        "directAccessGrantsEnabled": false,
+        "serviceAccountsEnabled": false,
+        "publicClient": false,
+        "frontchannelLogout": true,
+        "protocol": "openid-connect",
+        "attributes": {
+          "oidc.ciba.grant.enabled": "false",
+          "backchannel.logout.session.required": "true",
+          "display.on.consent.screen": "false",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "backchannel.logout.revoke.offline.tokens": "false"
+        },
+        "authenticationFlowBindingOverrides": {},
+        "fullScopeAllowed": true,
+        "nodeReRegistrationTimeout": -1,
+        "defaultClientScopes": [
+          "web-origins",
+          "acr",
+          "profile",
+          "roles",
+          "email",
+          "microprofile-jwt"
+        ],
+        "optionalClientScopes": [
+          "address",
+          "phone",
+          "offline_access"
+        ]
+      },
+      {
+        "clientId": "harbor-navarcos",
+        "name": "harbor-navarcos",
+        "description": "",
+        "rootUrl": "${NAVARCOS_HARBOR_URL}",
+        "adminUrl": "",
+        "baseUrl": "/",
+        "surrogateAuthRequired": false,
+        "enabled": true,
+        "alwaysDisplayInConsole": false,
+        "clientAuthenticatorType": "client-secret",
+        "redirectUris": [
+          "/c/oidc/callback"
+        ],
+        "webOrigins": [
+          "/*"
+        ],
+        "notBefore": 0,
+        "bearerOnly": false,
+        "consentRequired": true,
+        "standardFlowEnabled": true,
+        "implicitFlowEnabled": false,
+        "directAccessGrantsEnabled": false,
+        "serviceAccountsEnabled": false,
+        "publicClient": false,
+        "frontchannelLogout": true,
+        "protocol": "openid-connect",
+        "attributes": {
+          "oidc.ciba.grant.enabled": "false",
+          "backchannel.logout.session.required": "true",
+          "display.on.consent.screen": "false",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "backchannel.logout.revoke.offline.tokens": "false"
+        },
+        "authenticationFlowBindingOverrides": {},
+        "fullScopeAllowed": true,
+        "nodeReRegistrationTimeout": -1,
+        "defaultClientScopes": [
+          "web-origins",
+          "acr",
+          "profile",
+          "roles",
+          "email",
+          "microprofile-jwt"
+        ],
+        "optionalClientScopes": [
+          "address",
+          "phone",
+          "offline_access"
+        ]
+      }
+    ],
+    "users": [
+        {
+            "username": "ncadmin@ncadmin.local",
+            "enabled": true,
+            "totp": false,
+            "emailVerified": true,
+            "firstName": "NCAdmin",
+            "lastName": "NCAdmin",
+            "email": "ncadmin@ncadmin.local",
+            "disableableCredentialTypes": [],
+            "requiredActions": [
+                "UPDATE_PASSWORD"
+            ],
+            "credentials": [
+                {
+                    "type": "password",
+                    "value": "ncadmin",
+                    "temporary": true
+                }
+            ],
+            "notBefore": 0,
+            "access": {
+                "manageGroupMembership": true,
+                "view": true,
+                "mapRoles": true,
+                "impersonate": true,
+                "manage": true
+            },
+            "groups": [
+                "realm_admin"
+            ]
+        }
+    ]
+  }

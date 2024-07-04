@@ -1,0 +1,62 @@
+navarcos:
+  # Environment
+  env: dev
+  # Cluster name
+  clusterName: navarcos
+  # Suffix for services name; e.g. ".navarcos.internal" so services are "keycloak.navarcos.internal","plancia.navarcos.internal"
+  domainSuffix: .navarcos.internal
+  # false: DHCP NOT available in network
+  # true: DHCP available
+  networkDHCP: false
+
+  repositoryMirror:
+    # Enables a mirror/proxy/cache for docker images
+    enabled: false
+    # true: the mirror is Nexus
+    # false: the mirror is Harbor
+    nexus: false
+    # The repo MUST have 
+    #   -cr.l5d.io -docker.io -gcr.io -ghcr.io -k8s.gcr.io 
+    #   -public.ecr.aws quay.io -registry.access.redhat.com
+    #   -registry.gitlab.com -registry.k8s.io
+    # mirrors/caches
+    repoURL: harbor.example.com
+  certManager:
+    # Registration email for Let's Encrypt and Step-CA
+    acmeRegistrationEmail: "email@example.com"
+    # ACME URL for CA
+    acmeURL: "https://step-ca.example.com/acme/acme/directory"
+    # ACME CA certificate bundle
+    acmeCABundle: |
+      -----BEGIN CERTIFICATE-----
+      XXXXXXXXXXXXXXXXXXXXXXXXXXX
+      -----END CERTIFICATE-----
+  externalDNS:
+    # IP address of DNS server to update
+    dnsIPAddress: 127.0.0.1
+    # Navarcos DNS zone
+    zone: "navarcos.internal"
+    # TSIG Secret for DNS created with HMAC-SHA256 algo
+    # the key has to be named the same as ".navarcos.domainSuffix" without starting fullstop
+    tsigSecret: "ezoZopbE4Q73HShuFYlf3FRvLWjtNXI5fd0TeQAYOug="
+  ingressExternal:
+    # IP used by the default Ingress
+    loadBalancerIP: 127.0.0.1
+  ingressInternal:
+    # IP used by internal Ingress, which publishes all internal services
+    loadBalancerIP: 127.0.0.2
+  gitlab:
+    # clientSecret of clientID "gitlab-navarcos" in Keycloak realm "Navarcos"
+    oidcSecret: ABCDE1234567890
+  opensearch:
+    # clientSecret of clientID "opensearch-navarcos" in Keycloak realm "Navarcos"
+    oidcSecret: ABCDE1234567890
+  oauth2Proxy:
+    # clientSecret of clientID "oauth2proxy-navarcos" in Keycloak realm "Navarcos"
+    oidcSecret: ABCDE1234567890
+  grafana:
+    # clientSecret of clientID "grafana-navarcos" in Keycloak realm "Navarcos"
+    oidcSecret: ABCDE1234567890
+  harbor:
+    # clientSecret of clientID "harbor-navarcos" in Keycloak realm "Navarcos"
+    oidcSecret: ABCDE1234567890

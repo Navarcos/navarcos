@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: plancia
+  annotations:
+    linkerd.io/inject: enabled
+spec:
+  finalizers:
+    - kubernetes
