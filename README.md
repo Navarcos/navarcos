@@ -8,27 +8,34 @@ _Navarcos is an opinionated Kubernetes CaaS/PaaS manager based on ClusterAPI and
 
 It leverages open source solutions to create and manage a fleet of Kubernetes clusters:
 
+* [Plancia](https://github.com/Navarcos/plancia)
+
+  Is Navarcos' web user interface and backend management service, which enables and orchestrates all the necessary actions to create a Navarcos managed Kubernetes cluster:
+  * Creation of the cluster's OIDC client in Keycloak.
+  * Configuration and creation of the `Cluster` object in Navarcos' ClusterAPI, enabling the use of OIDC authentication in the managed cluster.
+  * Installation of Calico CNI and metrics-server
+
 * [ClusterAPI](https://cluster-api.sigs.k8s.io/)
 
-    Cluster API is a Kubernetes sub-project focused on providing declarative APIs and tooling to simplify provisioning, upgrading, and operating multiple Kubernetes clusters.
-    Navarcos uses it to create and manage Kubernetes clusters in IaaS environments.
+  Cluster API is a Kubernetes sub-project focused on providing declarative APIs and tooling to simplify provisioning, upgrading, and operating multiple Kubernetes clusters.
+  Navarcos uses it to create and manage Kubernetes clusters in IaaS environments.
 
 * [Keycloak](https://www.keycloak.org/)
 
-    Keycloak is an open source software product to allow single sign-on with identity and access management aimed at modern applications and services.
-    Navarcos uses it to provide authentication and access management to Kubernetes clusters and its own interface, Plancia.
+  Keycloak is an open source software product to allow single sign-on with identity and access management aimed at modern applications and services.
+  Navarcos uses it to provide authentication and access management to Kubernetes clusters and its own interface, Plancia.
 
 * [Tigera Operator / Calico Networking](https://www.tigera.io/tigera-products/calico/)
 
-    Calico is an open-source networking and security solution for containers, virtual machines, and native host-based workloads.
-    Navarcos uses it as Kubernetes' networking stack, as such offering a a consistent experience and set of capabilities whether running in public cloud or on-premises, or on a single node or across a multi node cluster.
+  Calico is an open-source networking and security solution for containers, virtual machines, and native host-based workloads.
+  Navarcos uses it as Kubernetes' networking stack, as such offering a a consistent experience and set of capabilities whether running in public cloud or on-premises, or on a single node or across a multi node cluster.
 
 * [Ingress NGINX](https://github.com/kubernetes/ingress-nginx)
 
-    Ingress-nginx is an Ingress controller for Kubernetes using NGINX as a reverse proxy and load balancer.
-    Navarcos uses it as Kubernetes default Ingress controller to be compatible with the majority of Helm Charts and standard annotations.
+  Ingress-nginx is an Ingress controller for Kubernetes using NGINX as a reverse proxy and load balancer.
+  Navarcos uses it as Kubernetes default Ingress controller to be compatible with the majority of Helm Charts and standard annotations.
 
-We use the same technologies and processes for our software engineering that we recommend to our clients.
+We use the same technologies and processes for our software engineering that we recommend.
 
 This environment supports the entire lifecycle of the platform, from its creation to its maintenance.
 
@@ -65,6 +72,7 @@ This script automates the local deployment of:
 
 * a management Kind Kubernetes cluster
 * a ClusterAPI managed Kubernetes cluster in Docker
+* the Plancia webUI and backend management service
 
 and installs necessary Helm charts for components:
 
@@ -80,7 +88,8 @@ and installs necessary Helm charts for components:
 
 The end result is a local `navarcos` Kind cluster (the management cluster) and a `skafos-docker` managed cluster.
 
-The Plancia webUI and managed clusters are authenticated via OIDC using Navarcos' Keycloak, which can be reached at `https://keycloak.<IP ADDRESS OF CONTROL PLANE NODE>.nip.io/` (the actual FQDN can be retrieved in cluster via `kubectl get node navarcos-control-plane -o jsonpath='{.status.addresses[0].address}'`), default credentials are `ncadmin@ncadmin.local`:`ncadmin`.
+The Plancia webUI and managed clusters are authenticated via OIDC using Navarcos' Keycloak, which can be reached at `https://keycloak.<IP ADDRESS OF CONTROL PLANE NODE>.nip.io/` (the actual FQDN can be retrieved in cluster via `kubectl get node navarcos-control-plane -o jsonpath='{.status.addresses[0].address}'`).
+Default administrator credentials are `ncadmin@ncadmin.local`:`ncadmin`.
 
 Files rendered from templates during the installation (e.g. Navarcos values YAML, Keycloak Chart values YAML, Keycloak Realm JSONs) are stored in `./bootstrap_out` for future reference.
 
@@ -104,13 +113,46 @@ Follow these steps to quickly set up a Navarcos test environment using Kind and 
     to initiate the setup process.
     This script automates the local deployment of the Navarcos management cluster, which hosts Keycloak and ClusterAPI.
 
-3. **Create a managed Kubernetes cluster in Docker**
+3. **Install Plancia**
+
+    Follow instructions from [Plancia's repo](https://github.com/Navarcos/plancia):
+
+    1. Clone Plancia:
+
+       ```bash
+       git clone https://github.com/Navarcos/plancia.git
+       cd plancia
+       ```
+
+    2. Run `deploy.sh` in Plancia directory
+    3. Accept Navarcos' CA, either:
+       1. Copying the CA Certificate from the script output in a file and installing it in your browser
+       2. Connecting and accepting the certificates to:
+
+          * `https://keycloak.<IP ADDRESS OF NAVARCOS CONTROL PLANE>.nip.io`
+          * `https://plancia-api.<IP ADDRESS OF NAVARCOS CONTROL PLANE>.nip.io`
+          * `https://plancia.<IP ADDRESS OF NAVARCOS CONTROL PLANE>.nip.io`
+
+       Correct URLs are printed during the deploy script.
+
+4. **Create a managed Kubernetes cluster in Plancia**
+
+    Login to Plancia `https://plancia.<IP ADDRESS OF NAVARCOS CONTROL PLANE>.nip.io` with default administrator credentials:
+
+    * username: `ncadmin@ncadmin.local`
+    * password: `ncadmin`
+
+    Use Plancia to create a managed Kubernetes cluster using the Docker provider.
+
+5. **(_Alternative_) Create a test managed Kubernetes cluster without Plancia**
 
     Ensure that the local machine kernel parameters are compatible with the Docker ClusterAPI Provider:
+
     * `sysctl -b fs.inotify.max_user_watches` must be equal or greater than 1048576
     * `sysctl -b fs.inotify.max_user_instances` must be equal or greater than 8192
 
     if it is not so:
+
     * `sudo sysctl fs.inotify.max_user_watches=1048576`
     * `sudo sysctl fs.inotify.max_user_instances=8192`
 
