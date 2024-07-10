@@ -1,24 +1,26 @@
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: ClusterClass
 metadata:
-  name: quick-start
+  name: skafos
   namespace: ${K8S_TENANT_NAMESPACE}
 spec:
   controlPlane:
+    namingStrategy:
+      template: "cp-{{ .random }}"
     machineInfrastructure:
       ref:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: DockerMachineTemplate
-        name: quick-start-control-plane
+        name: skafos-cp
     ref:
       apiVersion: controlplane.cluster.x-k8s.io/v1beta1
       kind: KubeadmControlPlaneTemplate
-      name: quick-start-control-plane
+      name: skafos-cp
   infrastructure:
     ref:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
       kind: DockerClusterTemplate
-      name: quick-start-cluster
+      name: skafos-cluster
   patches:
   - definitions:
     - jsonPatches:
@@ -76,7 +78,7 @@ spec:
         matchResources:
           machinePoolClass:
             names:
-            - default-worker
+            - default-wk
     - jsonPatches:
       - op: add
         path: /spec/template/spec/customImage
@@ -89,7 +91,7 @@ spec:
         matchResources:
           controlPlane: true
     description: Sets the container image that is used for running dockerMachines
-      for the controlPlane and default-worker machineDeployments.
+      for the controlPlane and default-wk machineDeployments.
     name: customImage
   - definitions:
     - jsonPatches:
@@ -191,23 +193,25 @@ spec:
         type: object
   workers:
     machinePools:
-    - class: default-worker
+    - class: default-wk
+      namingStrategy:
+        template: "mp-{{ .random }}"
       template:
         bootstrap:
           ref:
             apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
             kind: KubeadmConfigTemplate
-            name: quick-start-default-worker-bootstraptemplate
+            name: skafos-default-wk-bootstraptemplate
         infrastructure:
           ref:
             apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
             kind: DockerMachinePoolTemplate
-            name: quick-start-default-worker-machinepooltemplate
+            name: skafos-default-wk-machinepooltemplate
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerClusterTemplate
 metadata:
-  name: quick-start-cluster
+  name: skafos-cluster
   namespace: ${K8S_TENANT_NAMESPACE}
 spec:
   template:
@@ -216,7 +220,7 @@ spec:
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlaneTemplate
 metadata:
-  name: quick-start-control-plane
+  name: skafos-cp
   namespace: ${K8S_TENANT_NAMESPACE}
 spec:
   template:
@@ -252,19 +256,7 @@ ${NAVARCOS_CA}
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerMachineTemplate
 metadata:
-  name: quick-start-control-plane
-  namespace: ${K8S_TENANT_NAMESPACE}
-spec:
-  template:
-    spec:
-      extraMounts:
-      - containerPath: /var/run/docker.sock
-        hostPath: /var/run/docker.sock
----
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: DockerMachineTemplate
-metadata:
-  name: quick-start-default-worker-machinetemplate
+  name: skafos-cp
   namespace: ${K8S_TENANT_NAMESPACE}
 spec:
   template:
@@ -276,7 +268,7 @@ spec:
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerMachinePoolTemplate
 metadata:
-  name: quick-start-default-worker-machinepooltemplate
+  name: skafos-default-wk-machinepooltemplate
   namespace: ${K8S_TENANT_NAMESPACE}
 spec:
   template:
@@ -286,7 +278,7 @@ spec:
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
 metadata:
-  name: quick-start-default-worker-bootstraptemplate
+  name: skafos-default-wk-bootstraptemplate
   namespace: ${K8S_TENANT_NAMESPACE}
 spec:
   template:
@@ -323,7 +315,7 @@ spec:
       cidrBlocks:
       - 10.128.0.0/12
   topology:
-    class: quick-start
+    class: skafos
     controlPlane:
       metadata: {}
       replicas: ${K8S_MASTER_NODES}
@@ -343,6 +335,6 @@ spec:
     version: v${K8S_VERSION}
     workers:
       machinePools:
-      - class: default-worker
+      - class: default-wk
         name: mp-0
         replicas: ${K8S_WORKER_NODES}

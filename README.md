@@ -13,7 +13,7 @@ It leverages open source solutions to create and manage a fleet of Kubernetes cl
   Is Navarcos' web user interface and backend management service, which enables and orchestrates all the necessary actions to create a Navarcos managed Kubernetes cluster:
   * Creation of the cluster's OIDC client in Keycloak.
   * Configuration and creation of the `Cluster` object in Navarcos' ClusterAPI, enabling the use of OIDC authentication in the managed cluster.
-  * Installation of Calico CNI and metrics-server
+  * Installation of Calico CNI and metrics-server in the managed cluster.
 
 * [ClusterAPI](https://cluster-api.sigs.k8s.io/)
 
@@ -47,24 +47,20 @@ Navarcos offers a robust and flexible infrastructure designed to support the dyn
 
 Thanks to its modular nature, Navarcos can be adapted and extended to meet the specific needs of various applications and industrial sectors.
 
-## Table of Contents
-
-[[_TOC_]]
-
 ## Pre-requisites
 
 All you need is a system with:
 
-* Docker Engine (https://docs.docker.com/engine/install/)
-* kubectl (https://kubernetes.io/docs/tasks/tools/)
-* clusterctl (https://github.com/kubernetes-sigs/cluster-api)
-* helm (https://helm.sh/)
-* jq (https://jqlang.github.io/jq/)
-* yq (https://github.com/mikefarah/yq), minimum required version 4.0
-* kind (https://kind.sigs.k8s.io/)
+* Docker Engine (<https://docs.docker.com/engine/install/>)
+* kubectl (<https://kubernetes.io/docs/tasks/tools/>)
+* clusterctl (<https://github.com/kubernetes-sigs/cluster-api>)
+* helm (<https://helm.sh/>)
+* jq (<https://jqlang.github.io/jq/>)
+* yq (<https://github.com/mikefarah/yq>), minimum required version 4.0
+* kind (<https://kind.sigs.k8s.io/>)
 
-Docker Engine is better [installed using your distro's packages](https://docs.docker.com/engine/install/).
-All other software can be installed using [homebrew](https://brew.sh/).
+Docker Engine is better [installed using your distro's packages](<https://docs.docker.com/engine/install/>).
+All other software can be installed using [homebrew](<https://brew.sh/>).
 
 ## Quick Start (local test environment)
 
@@ -193,10 +189,10 @@ The bootstrap script automates the setup and configuration of the Navarcos envir
     * Creating self-signed cert-manager ClusterIssuer.
 7. ClusterAPI Initialization: Initializing ClusterAPI components and providers.
 8. Ingress NGINX Installation: Deploying Ingress NGINX controller.
-9. Keycloak Deployment: Installing Keycloak with configurations retrieved from rendered keycloak.values.yaml.
-10. Plancia Environment Setup: Creating the plancia namespace and applying configuration maps (plancia.configmaps.yaml) with services URLs.
+9. Keycloak Deployment: Installing Keycloak with configurations retrieved from rendered `keycloak.values.yaml`.
+10. Plancia Environment Setup: Creating the `plancia` namespace and applying configuration maps (plancia.configmaps.yaml) with services URLs.
 11. Keycloak Integration:
-    * Creating a client (plancia) in the Keycloak master realm with necessary roles.
+    * Creating a client (`plancia`) in the Keycloak master realm with necessary roles for Plancia.
     * Creating a "Navarcos" realm and clients for Plancia and future services.
 12. Storing Secrets: Storing generated client secrets in values.yaml for future reference.
 
@@ -223,19 +219,19 @@ The bootstrap script automates the setup and configuration of the Navarcos envir
 Instructions on how to contribute to the project:
 
 * Fork the repository
-* Create a new branch (git checkout -b feature/amazing-feature)
+* Create a new branch
 
 ```bash
   git checkout -b feature/amazing-feature
 ```
 
-* Commit your changes (git commit -m 'feat: add amazing-feature')
+* Commit your changes
 
 ```bash
   git commit -m 'feat: add amazing-feature'
 ```
 
-* Push to the branch (git push origin feature/amazing-feature)
+* Push to the branch
 
 ```bash
   git push origin feature/amazing-feature
