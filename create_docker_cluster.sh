@@ -110,7 +110,7 @@ helm upgrade metrics-server metrics-server-navarcos --install --wait --namespace
     --kubeconfig ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig
 
 echo "$(g_echo NAVARCOS:INFO:) Creating ${K8S_TENANT_NAMESPACE}-(dev|test|prod) namespaces and Bindings"
-kubectl apply -f ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.cluster_namespaces_roles.yaml\
+kubectl apply -f ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.cluster_namespaces_roles.yaml \
     --kubeconfig ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig
 
 # Generate users OIDC kubeconfig
