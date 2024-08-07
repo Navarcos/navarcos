@@ -1,0 +1,155 @@
+---
+# ClusterRole for viewing namespaces
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ${K8S_TENANT_NAMESPACE}-namespace-viewer
+rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list", "watch"]
+---
+# ClusterRoleBinding for <tenant>_admin
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ${K8S_TENANT_NAMESPACE}-admin
+subjects:
+- kind: Group
+  name: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}_admin
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+---
+# Namespaces for <tenant>: <tenant>-dev <tenant>-test <tenant>-prod
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: ${K8S_TENANT_NAMESPACE}-dev
+  labels:
+    kubernetes.io/metadata.name: ${K8S_TENANT_NAMESPACE}-dev
+spec:
+  finalizers:
+    - kubernetes
+---
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: ${K8S_TENANT_NAMESPACE}-test
+  labels:
+    kubernetes.io/metadata.name: ${K8S_TENANT_NAMESPACE}-test
+spec:
+  finalizers:
+    - kubernetes
+---
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: ${K8S_TENANT_NAMESPACE}-prod
+  labels:
+    kubernetes.io/metadata.name: ${K8S_TENANT_NAMESPACE}-prod
+spec:
+  finalizers:
+    - kubernetes
+---
+# Rolebinding on <tenant>-dev <tenant>-test <tenant>-prod for <tenant>_owner as admin
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ${K8S_TENANT_NAMESPACE}-owner
+  namespace: ${K8S_TENANT_NAMESPACE}-dev
+subjects:
+- kind: Group
+  name: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}_owner
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ${K8S_TENANT_NAMESPACE}-owner
+  namespace: ${K8S_TENANT_NAMESPACE}-test
+subjects:
+- kind: Group
+  name: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}_owner
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ${K8S_TENANT_NAMESPACE}-owner
+  namespace: ${K8S_TENANT_NAMESPACE}-prod
+subjects:
+- kind: Group
+  name: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}_owner
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+---
+# Rolebinding on <tenant>-dev <tenant>-test <tenant>-prod for <tenant>_developer as edit
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ${K8S_TENANT_NAMESPACE}-developer
+  namespace: ${K8S_TENANT_NAMESPACE}-dev
+subjects:
+- kind: Group
+  name: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}_developer
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ${K8S_TENANT_NAMESPACE}-developer
+  namespace: ${K8S_TENANT_NAMESPACE}-test
+subjects:
+- kind: Group
+  name: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}_developer
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ${K8S_TENANT_NAMESPACE}-developer
+  namespace: ${K8S_TENANT_NAMESPACE}-prod
+subjects:
+- kind: Group
+  name: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}_developer
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+# Rolebinding for <tenant>_developer to view namespaces
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ${K8S_TENANT_NAMESPACE}-developer-namespace-viewer
+subjects:
+- kind: Group
+  name: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}_developer
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ${K8S_TENANT_NAMESPACE}-namespace-viewer
