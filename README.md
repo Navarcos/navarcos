@@ -131,7 +131,7 @@ Follow these steps to quickly set up a Navarcos test environment using Kind and 
 
        Correct URLs are printed during the deploy script.
 
-4. **Create a managed Kubernetes cluster in Plancia**
+4. **Create a test managed Kubernetes cluster with Plancia**
 
     Login to Plancia `https://plancia.<IP ADDRESS OF NAVARCOS CONTROL PLANE>.nip.io` with default administrator credentials:
 
@@ -251,4 +251,4 @@ Unless required by applicable law or agreed to in writing, software distributed 
 
 ## Copyright
 
-Copyright :copyright: 2024 [Activa Digital](https://www.activadigital.it).
+Copyright :copyright: 2024 [Activa Digital](https://www.activadigital.it)
