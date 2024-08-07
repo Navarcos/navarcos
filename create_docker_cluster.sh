@@ -67,6 +67,7 @@ echo "$(g_echo NAVARCOS:INFO:) Rendering cluster resources"
 export NAVARCOS_CA=$(echo "$NAVARCOS_CA" | sed -r 's/^/              /')
 envsubst < "./bootstrap_local_docker/k8s-clusterapi-docker-navarcos.TEMPLATE.yaml" > "./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.cluster.yaml"
 envsubst < "./bootstrap_local_docker/keycloak_realm.TEMPLATE.json" > "./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.keycloak.realm.json"
+envsubst < "./bootstrap_local_docker/cluster_namespaces_roles.TEMPLATE.yaml" > "./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.cluster_namespaces_roles.yaml"
 
 echo "$(g_echo NAVARCOS:INFO:) Getting Keycloak token"
 # Get Keycloak admin password from K8s
@@ -106,6 +107,10 @@ helm upgrade metrics-server metrics-server-navarcos --install --wait --namespace
     --version $(yq '.navarcos.metricsServer.targetRevision' < values.providers.yaml) \
     --repo https://navarcos.github.io/navarcos-charts \
     --values ./bootstrap_yaml/metrics-server.values.yaml \
+    --kubeconfig ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig
+
+echo "$(g_echo NAVARCOS:INFO:) Creating ${K8S_TENANT_NAMESPACE}-(dev|test|prod) namespaces and Bindings"
+kubectl apply -f ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.cluster_namespaces_roles.yaml \
     --kubeconfig ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig
 
 # Generate users OIDC kubeconfig

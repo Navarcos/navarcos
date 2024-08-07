@@ -283,6 +283,9 @@ NAVARCOS_KEYCLOAK_RESULT=$(curl -s -k -X POST -d "$(envsubst < "./bootstrap_data
 echo "$(g_echo NAVARCOS:INFO:) Create Keycloak Navarcos realm"
 NAVARCOS_KEYCLOAK_RESULT=$(curl -s -k -X POST -d "$(envsubst < "./bootstrap_data/keycloak_realm.TEMPLATE.json")" -H "Content-Type: application/json" -H "Authorization: bearer ${NAVARCOS_KEYCLOAK_TOKEN}" "${NAVARCOS_KEYCLOAK_URL}/admin/realms")
 
+echo "$(g_echo NAVARCOS:INFO:) Create Navarcos ClusterRoleBinding for navarcos_admin role in Navarcos realm"
+kubectl apply -f ./bootstrap_yaml/cluster_namespaces_roles.navarcos.yaml
+
 echo "$(g_echo NAVARCOS:INFO:) Create plancia clients secrets"
 NAVARCOS_KEYCLOAK_RESULT=$(curl -s -k -H "Content-Type: application/json" -H "Authorization: bearer ${NAVARCOS_KEYCLOAK_TOKEN}" "${NAVARCOS_KEYCLOAK_URL}/admin/realms/Navarcos/clients")
 # Extract client secrets
