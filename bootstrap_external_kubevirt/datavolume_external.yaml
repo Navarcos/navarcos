@@ -1,0 +1,21 @@
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: "import-ubuntu-disk"
+  annotations:
+    cdi.kubevirt.io/storage.bind.immediate.requested: "true"
+  labels:
+    navarcos.commons: storage
+spec:
+  source:
+    registry:
+      url: docker://quay.io/capk/ubuntu-2204-container-disk:v1.27.14
+  pvc:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: "15Gi"  # Size needs to be specified
+    volumeMode: Filesystem  # Aggiungi questa riga se desideri esplicitare il volume mode
+  # https://github.com/kubevirt/containerized-data-importer/blob/main/doc/waitforfirstconsumer-storage-handling.md
+---

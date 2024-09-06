@@ -1,0 +1,316 @@
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: "import-ubuntu-disk"
+  annotations:
+    cdi.kubevirt.io/storage.bind.immediate.requested: "true"
+  labels:
+    navarcos.commons: storage
+spec:
+  source:
+    registry:
+      url: docker://quay.io/capk/ubuntu-2204-container-disk:v1.27.14
+  pvc:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: "10Gi"  # Size needs to be specified
+    volumeMode: Filesystem  # Aggiungi questa riga se desideri esplicitare il volume mode
+  # https://github.com/kubevirt/containerized-data-importer/blob/main/doc/waitforfirstconsumer-storage-handling.md
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: ${K8S_CLUSTER_NAME}
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 10.243.0.0/16
+    services:
+      cidrBlocks:
+      - 10.95.0.0/16
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: KubeadmControlPlane
+    name: ${K8S_CLUSTER_NAME}-control-plane
+    namespace: ${K8S_TENANT_NAMESPACE}
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+    kind: KubevirtCluster
+    name: ${K8S_CLUSTER_NAME}
+    namespace: ${K8S_TENANT_NAMESPACE}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: KubevirtCluster
+metadata:
+  name: ${K8S_CLUSTER_NAME}
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  controlPlaneServiceTemplate:
+    spec:
+      type: LoadBalancer
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: KubevirtMachineTemplate
+metadata:
+  name: ${K8S_CLUSTER_NAME}-control-plane
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  template:
+    spec:
+      virtualMachineBootstrapCheck:
+        checkStrategy: ssh
+      virtualMachineTemplate:
+        metadata:
+          namespace: ${K8S_TENANT_NAMESPACE}
+        spec:
+          dataVolumeTemplates:
+          - apiVersion: cdi.kubevirt.io/v1beta1
+            kind: DataVolume
+            metadata:
+              annotations:
+                cdi.kubevirt.io/storage.deleteAfterCompletion: "false"
+              name: rootubuntucontrolplane
+              namespace: ${K8S_TENANT_NAMESPACE}
+            spec:
+              pvc:
+                accessModes:
+                - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 12Gi
+              source:
+                pvc:
+                  name: import-ubuntu-disk
+                  namespace: default
+          runStrategy: Always
+          template:
+            spec:
+              domain:
+                cpu:
+                  cores: 2
+                devices:
+                  disks:
+                  - disk:
+                      bus: virtio
+                    name: rootdisk
+                  # - disk:
+                  #     bus: virtio
+                  #   name: cloudinitdisk
+                  networkInterfaceMultiqueue: true
+                memory:
+                  guest: 6Gi
+              evictionStrategy: External
+              volumes:
+              - dataVolume:
+                  name: rootubuntucontrolplane
+                name: rootdisk
+              # - cloudInitNoCloud:
+              #    userData: |-
+              #       #cloud-config
+              #       disable_root: false
+              #       ssh_pwauth: true
+              #       users:
+              #         - default
+              #         - name: root
+              #           password: toor
+              #           chpasswd: { expire: False }
+              #           ssh_authorized_keys:
+              #             - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDxveIo+Gx49FzpzoL1IAurmj30eZqbCyySWaHmjo9BmuFD26h9WnwkZFt1JBUh12Cnahs/YS2VUfj/7YI9d63Z6A6zPgq3gDJIGuePQ9/EuUzBlzxe8wV6IcXPIOmbiTfD/aEjQKZBIZ9Q6RRxIn6HkelnRSCbceVoIlp6NvA9Fu9tMtqggQzV9UgMfWHHeHGk2COanyIhzpRyh33/vPMc+Pg1m0JTcA8Cs2+vvAsmI33lAmRIq2+AJrd0DeWYDH3NFlCWX8R4h/huDeNJDHTbIVQk6EyvyRGaLmdqM3h1goOcuBHI45k6/49stXkksyeNIh2LGaaRY603AprfamRBNomw2rqJpPxqgf6L34SvZ7eUB0q4vEo4fueyzq4TMkk+gPszg3fQ7zydc8D8U4ddm/3kaFL9V0vfvdEbLDgvX574zU3/4c+mPJe02+Nrc1WbrOivHNkoyIUUlYWSy6Q/GOkFoQ9rMNTfqoNE0gN/q2GwnEIScOUPsgvJ5oP9cqE= llandi@llandi-vostro3520
+              #   name: cloudinitdisk
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${K8S_CLUSTER_NAME}-control-plane
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  kubeadmConfigSpec:
+    initConfiguration:
+      nodeRegistration:
+        criSocket: /var/run/containerd/containerd.sock
+        kubeletExtraArgs:
+          cloud-provider: external
+    joinConfiguration:
+      nodeRegistration:
+        criSocket: /var/run/containerd/containerd.sock
+        kubeletExtraArgs:
+          cloud-provider: external
+    clusterConfiguration:
+      controllerManager:
+        extraArgs:
+          cloud-provider: external
+      apiServer:
+        certSANs:
+        - localhost
+        - 127.0.0.1
+        - 0.0.0.0
+        - host.kubevirt.internal
+        - ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.internal
+        - ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+        extraArgs:
+          cloud-provider: external
+          oidc-client-id: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+          oidc-groups-claim: groups
+          oidc-issuer-url: ${K8S_OIDC_PROVIDER}
+          oidc-username-claim: preferred_username
+          oidc-username-prefix: 'oidc:'
+      networking:
+        dnsDomain: ${K8S_CLUSTER_NAME}.default.local
+        podSubnet: 10.243.0.0/16
+        serviceSubnet: 10.95.0.0/16
+    # kubeletExtraArgs:
+    #   cloud-provider: external
+    #   oidc-client-id: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+    #   oidc-groups-claim: groups
+    #   oidc-issuer-url: ${K8S_OIDC_PROVIDER}
+    #   oidc-username-claim: preferred_username
+    #   oidc-username-prefix: 'oidc:'
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      kind: KubevirtMachineTemplate
+      name: ${K8S_CLUSTER_NAME}-control-plane
+      namespace: ${K8S_TENANT_NAMESPACE}
+  replicas: ${K8S_MASTER_NODES}
+  version: v1.27.14
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: KubevirtMachineTemplate
+metadata:
+  name: ${K8S_CLUSTER_NAME}-md-0
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  template:
+    spec:
+      virtualMachineBootstrapCheck:
+        checkStrategy: ssh
+      virtualMachineTemplate:
+        metadata:
+          namespace: ${K8S_TENANT_NAMESPACE}
+        spec:
+          dataVolumeTemplates:
+          - apiVersion: cdi.kubevirt.io/v1beta1
+            kind: DataVolume
+            metadata:
+              annotations:
+                cdi.kubevirt.io/storage.deleteAfterCompletion: "false"
+              name: rootubuntuworker
+              namespace: ${K8S_TENANT_NAMESPACE}
+            spec:
+              pvc:
+                accessModes:
+                - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 10Gi
+              source:
+                pvc:
+                  name: import-ubuntu-disk
+                  namespace: default
+          runStrategy: Always
+          template:
+            spec:
+              domain:
+                cpu:
+                  cores: 2
+                devices:
+                  disks:
+                  - disk:
+                      bus: virtio
+                    name: rootdisk
+                  # - disk:
+                  #     bus: virtio
+                  #   name: cloudinitdisk
+                  networkInterfaceMultiqueue: true
+                memory:
+                  guest: 4Gi
+              evictionStrategy: External
+              volumes:
+              - dataVolume:
+                  name: rootubuntuworker
+                name: rootdisk
+              # - cloudInitNoCloud:
+              #     userData: |-
+              #       #cloud-config
+              #       disable_root: false
+              #       ssh_pwauth: true
+              #       users:
+              #         - default
+              #         - name: root
+              #           password: toor
+              #           chpasswd: { expire: False }
+              #           ssh_authorized_keys:
+              #             - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDxveIo+Gx49FzpzoL1IAurmj30eZqbCyySWaHmjo9BmuFD26h9WnwkZFt1JBUh12Cnahs/YS2VUfj/7YI9d63Z6A6zPgq3gDJIGuePQ9/EuUzBlzxe8wV6IcXPIOmbiTfD/aEjQKZBIZ9Q6RRxIn6HkelnRSCbceVoIlp6NvA9Fu9tMtqggQzV9UgMfWHHeHGk2COanyIhzpRyh33/vPMc+Pg1m0JTcA8Cs2+vvAsmI33lAmRIq2+AJrd0DeWYDH3NFlCWX8R4h/huDeNJDHTbIVQk6EyvyRGaLmdqM3h1goOcuBHI45k6/49stXkksyeNIh2LGaaRY603AprfamRBNomw2rqJpPxqgf6L34SvZ7eUB0q4vEo4fueyzq4TMkk+gPszg3fQ7zydc8D8U4ddm/3kaFL9V0vfvdEbLDgvX574zU3/4c+mPJe02+Nrc1WbrOivHNkoyIUUlYWSy6Q/GOkFoQ9rMNTfqoNE0gN/q2GwnEIScOUPsgvJ5oP9cqE= llandi@llandi-vostro3520
+                # name: cloudinitdisk
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: ${K8S_CLUSTER_NAME}-md-0
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  template:
+    spec:
+      initConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            cloud-provider: external
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            cloud-provider: external
+            oidc-client-id: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+            oidc-groups-claim: groups
+            oidc-issuer-url: ${K8S_OIDC_PROVIDER}
+            oidc-username-claim: preferred_username
+            oidc-username-prefix: 'oidc:'
+      clusterConfiguration:
+        apiServer:
+          extraArgs:
+            cloud-provider: external
+            oidc-client-id: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+            oidc-groups-claim: groups
+            oidc-issuer-url: ${K8S_OIDC_PROVIDER}
+            oidc-username-claim: preferred_username
+            oidc-username-prefix: 'oidc:'
+        controllerManager:
+          extraArgs:
+            cloud-provider: external
+      files:
+      - content: |
+${NAVARCOS_CA}
+        owner: root:root
+        permissions: "0644"
+        path: /usr/local/share/ca-certificates/navarcos-ca.crt
+      joinConfiguration:
+        nodeRegistration: {}
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: ${K8S_CLUSTER_NAME}-md-0
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  clusterName: ${K8S_CLUSTER_NAME}
+  replicas: ${K8S_WORKER_NODES}
+  selector:
+    matchLabels: null
+  template:
+    spec:
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+          name: ${K8S_CLUSTER_NAME}-md-0
+          namespace: ${K8S_TENANT_NAMESPACE}
+      clusterName: ${K8S_CLUSTER_NAME}
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        kind: KubevirtMachineTemplate
+        name: ${K8S_CLUSTER_NAME}-md-0
+        namespace: ${K8S_TENANT_NAMESPACE}
+      version: v1.27.14

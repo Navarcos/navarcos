@@ -1,2 +1,4 @@
 controller:
   allowSnippetAnnotations: true
+  # nodeSelector:
+  #   nodeName: navarcos-worker

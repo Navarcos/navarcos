@@ -24,21 +24,6 @@ for graph in ./graph/*; do
 done
 echo -e "$HEADER"
 
-# Check prerequisites
-required_commands=("date" "cut" "jq" "tr" "base64" "kind" "yq" "envsubst" "helm" "kubectl" "curl" "sed" "clusterctl")
-missing_commands=()
-for cmd in "${required_commands[@]}"; do
-    check_command "$cmd"
-done
-if [ ${#missing_commands[@]} -ne 0 ]; then  # Check if the array of missing commands is not empty
-    echo "$(r_echo NAVARCOS:ERROR:) Prerequisites failed! Missing the following applications"
-    for cmd in "${missing_commands[@]}"; do
-        echo "  - $cmd"
-    done
-    exit 1  # if there are missing commands
-else
-    echo "$(g_echo NAVARCOS:INFO:) All required commands are installed. Proceeding"
-fi
 
 # Check for existing values file or use test one
 if [ ! -f "values.yaml" ]
@@ -156,6 +141,7 @@ if [ $? != 0 ];then
     echo "$(r_echo NAVARCOS:ERROR:) Error installing Tigera/Calico Operator CRDs"
     exit 1
 fi
+
 helm upgrade calico tigera-operator-navarcos --install --wait --namespace tigera-operator \
     --version $(yq '.clusterapi.tigera.targetRevision' < values.providers.yaml) \
     --repo https://navarcos.github.io/navarcos-charts
@@ -198,6 +184,7 @@ clusterctl init --wait-providers \
     --control-plane kubeadm:$(yq '.clusterapi.capi.targetRevision' < values.providers.yaml) \
     --infrastructure docker:$(yq '.clusterapi.capi.targetRevision' < values.providers.yaml) \
     --infrastructure vsphere:$(yq '.clusterapi.vsphere.targetRevision' < values.providers.yaml) \
+    --infrastructure kubevirt:$(yq '.clusterapi.kubevirt.targetRevision' < values.providers.yaml) \
     --ipam incluster:$(yq '.clusterapi.ipam.targetRevision' < values.providers.yaml) \
     --config ./bootstrap_yaml/clusterctl-IPAM.config.yaml
 if [ $? != 0 ];then
@@ -299,10 +286,6 @@ export NAVARCOS_GRAFANA_SECRET=$(echo "${NAVARCOS_KEYCLOAK_RESULT}" | jq -r '.[]
 [ -z "${NAVARCOS_PLANCIA_BE_SECRET}" ] || kubectl create secret generic plancia-backend-client --namespace plancia \
     --from-literal=clientId=plancia-backend \
     --from-literal=clientSecret=${NAVARCOS_PLANCIA_BE_SECRET} \
-    --from-literal=realm=Navarcos
-# Create K8s secret for plancia-frontend account in Navarcos realm
-[ -z "${NAVARCOS_PLANCIA_BE_SECRET}" ] || kubectl create secret generic plancia-frontend-client --namespace plancia \
-    --from-literal=clientId=plancia \
     --from-literal=realm=Navarcos
 
 if [ ! -f "values.yaml" ]

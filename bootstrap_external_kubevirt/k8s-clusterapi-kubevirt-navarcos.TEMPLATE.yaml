@@ -1,0 +1,266 @@
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: ${K8S_CLUSTER_NAME}
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 10.243.0.0/16
+    services:
+      cidrBlocks:
+      - 10.95.0.0/16
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: KubeadmControlPlane
+    name: ${K8S_CLUSTER_NAME}-control-plane
+    namespace: ${K8S_TENANT_NAMESPACE}
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+    kind: KubevirtCluster
+    name: ${K8S_CLUSTER_NAME}
+    namespace: ${K8S_TENANT_NAMESPACE}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: KubevirtCluster
+metadata:
+  name: ${K8S_CLUSTER_NAME}
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  infraClusterSecretRef:
+    apiVersion: v1
+    kind: Secret
+    name: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}-external-infra-kubeconfig
+    namespace: capk-system
+  controlPlaneServiceTemplate:
+    metadata:
+      namespace: ${K8S_TENANT_NAMESPACE}
+    spec:
+      type: LoadBalancer
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: KubevirtMachineTemplate
+metadata:
+  name: ${K8S_CLUSTER_NAME}-control-plane
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  template:
+    spec:
+      virtualMachineBootstrapCheck:
+        checkStrategy: none
+      virtualMachineTemplate:
+        metadata:
+          namespace: ${K8S_TENANT_NAMESPACE}
+        spec:
+          dataVolumeTemplates:
+          - apiVersion: cdi.kubevirt.io/v1beta1
+            kind: DataVolume
+            metadata:
+              annotations:
+                cdi.kubevirt.io/storage.deleteAfterCompletion: "false"
+              name: rootubuntucontrolplane
+              namespace: ${K8S_TENANT_NAMESPACE}
+            spec:
+              pvc:
+                accessModes:
+                - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 15Gi
+              source:
+                pvc:
+                  name: import-ubuntu-disk
+                  namespace: default
+          runStrategy: Always
+          template:
+            spec:
+              domain:
+                cpu:
+                  cores: 2
+                devices:
+                  disks:
+                  - disk:
+                      bus: virtio
+                    name: rootdisk
+                  networkInterfaceMultiqueue: true
+                memory:
+                  guest: 6Gi
+              evictionStrategy: External
+              volumes:
+              - dataVolume:
+                  name: rootubuntucontrolplane
+                name: rootdisk
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${K8S_CLUSTER_NAME}-control-plane
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  kubeadmConfigSpec:
+    initConfiguration:
+      nodeRegistration:
+        criSocket: /var/run/containerd/containerd.sock
+        kubeletExtraArgs:
+          cloud-provider: external
+    joinConfiguration:
+      nodeRegistration:
+        criSocket: /var/run/containerd/containerd.sock
+        kubeletExtraArgs:
+          cloud-provider: external
+    clusterConfiguration:
+      controllerManager:
+        extraArgs:
+          cloud-provider: external
+      apiServer:
+        certSANs:
+        - localhost
+        - 127.0.0.1
+        - 0.0.0.0
+        - host.kubevirt.internal
+        - ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.internal
+        - ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+        extraArgs:
+          cloud-provider: external
+          oidc-client-id: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+          oidc-groups-claim: groups
+          oidc-issuer-url: ${K8S_OIDC_PROVIDER}
+          oidc-username-claim: preferred_username
+          oidc-username-prefix: 'oidc:'
+      networking:
+        dnsDomain: ${K8S_CLUSTER_NAME}.default.local
+        podSubnet: 10.243.0.0/16
+        serviceSubnet: 10.95.0.0/16
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      kind: KubevirtMachineTemplate
+      name: ${K8S_CLUSTER_NAME}-control-plane
+      namespace: ${K8S_TENANT_NAMESPACE}
+  replicas: ${K8S_MASTER_NODES}
+  version: v1.27.14
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: KubevirtMachineTemplate
+metadata:
+  name: ${K8S_CLUSTER_NAME}-md-0
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  template:
+    spec:
+      virtualMachineBootstrapCheck:
+        checkStrategy: none
+      virtualMachineTemplate:
+        metadata:
+          namespace: ${K8S_TENANT_NAMESPACE}
+        spec:
+          dataVolumeTemplates:
+          - apiVersion: cdi.kubevirt.io/v1beta1
+            kind: DataVolume
+            metadata:
+              annotations:
+                cdi.kubevirt.io/storage.deleteAfterCompletion: "false"
+              name: rootubuntuworker
+              namespace: ${K8S_TENANT_NAMESPACE}
+            spec:
+              pvc:
+                accessModes:
+                - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 15Gi
+              source:
+                pvc:
+                  name: import-ubuntu-disk
+                  namespace: default
+          runStrategy: Always
+          template:
+            spec:
+              domain:
+                cpu:
+                  cores: 2
+                devices:
+                  disks:
+                  - disk:
+                      bus: virtio
+                    name: rootdisk
+                  # - disk:
+                  #     bus: virtio
+                  #   name: cloudinitdisk
+                  networkInterfaceMultiqueue: true
+                memory:
+                  guest: 4Gi
+              evictionStrategy: External
+              volumes:
+              - dataVolume:
+                  name: rootubuntuworker
+                name: rootdisk
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: ${K8S_CLUSTER_NAME}-md-0
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  template:
+    spec:
+      initConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            cloud-provider: external
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            cloud-provider: external
+            oidc-client-id: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+            oidc-groups-claim: groups
+            oidc-issuer-url: ${K8S_OIDC_PROVIDER}
+            oidc-username-claim: preferred_username
+            oidc-username-prefix: 'oidc:'
+      clusterConfiguration:
+        apiServer:
+          extraArgs:
+            cloud-provider: external
+            oidc-client-id: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+            oidc-groups-claim: groups
+            oidc-issuer-url: ${K8S_OIDC_PROVIDER}
+            oidc-username-claim: preferred_username
+            oidc-username-prefix: 'oidc:'
+        controllerManager:
+          extraArgs:
+            cloud-provider: external
+      files:
+      - content: |
+${NAVARCOS_CA}
+        owner: root:root
+        permissions: "0644"
+        path: /usr/local/share/ca-certificates/navarcos-ca.crt
+      joinConfiguration:
+        nodeRegistration: {}
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: ${K8S_CLUSTER_NAME}-md-0
+  namespace: ${K8S_TENANT_NAMESPACE}
+spec:
+  clusterName: ${K8S_CLUSTER_NAME}
+  replicas: ${K8S_WORKER_NODES}
+  selector:
+    matchLabels: null
+  template:
+    spec:
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+          name: ${K8S_CLUSTER_NAME}-md-0
+          namespace: ${K8S_TENANT_NAMESPACE}
+      clusterName: ${K8S_CLUSTER_NAME}
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        kind: KubevirtMachineTemplate
+        name: ${K8S_CLUSTER_NAME}-md-0
+        namespace: ${K8S_TENANT_NAMESPACE}
+      version: v1.27.14

@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+unset KUBECONFIG
 
 # Import utility functions
 for function in ./func/*; do
@@ -52,13 +52,23 @@ export NAVARCOS_CA=$(kubectl get secret navarcos-ca-secret -n cert-manager -o js
 echo "$(g_echo NAVARCOS:INFO:) Kind Navarcos CA certificate"
 echo "${NAVARCOS_CA}"
 
+
 # Default variables for test managed cluster
-export K8S_TENANT_NAMESPACE="skafos"
-export K8S_TENANT_REALM="Skafos"
-export K8S_CLUSTER_NAME="docker"
-export K8S_MASTER_NODES="3"
-export K8S_WORKER_NODES="3"
+
+
+: ${K8S_TENANT_NAMESPACE:="skafos-docker-local"}
+: ${K8S_TENANT_REALM:="realm-skafos-docker-local"}
+: ${K8S_CLUSTER_NAME:="cluster-docker-local"}
+: ${K8S_MASTER_NODES:="1"}
+: ${K8S_WORKER_NODES:="1"}
+
+export K8S_TENANT_NAMESPACE
+export K8S_TENANT_REALM
+export K8S_CLUSTER_NAME
+export K8S_MASTER_NODES
+export K8S_WORKER_NODES
 export K8S_VERSION="1.27.13"
+
 NAVARCOS_KEYCLOAK_URL=$(yq '.ingress.hostname' < ./bootstrap_out/keycloak.values.yaml)
 export K8S_OIDC_PROVIDER="https://${NAVARCOS_KEYCLOAK_URL}/realms/${K8S_TENANT_REALM}"
 echo "$(g_echo NAVARCOS:INFO:) OIDC Provider is ${K8S_OIDC_PROVIDER}"
@@ -87,7 +97,19 @@ kubectl apply -f ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.clu
 while kubectl get secret ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}-kubeconfig -n ${K8S_TENANT_NAMESPACE} ; [ $? -ne 0 ];do
   sleep 1
 done
+
 kubectl get secret ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}-kubeconfig -n ${K8S_TENANT_NAMESPACE} --template={{.data.value}}|base64 -d > ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig
+
+echo "$(g_echo "you can monitoring your cluster while installing components, you can retrive the command in ./bootstrap_out/set_kubeconfigs.txt also":)" 
+echo "$(g_echo "Fish-shell":)" 
+echo "set -x KUBECONFIG $(pwd)/bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig"
+echo "$(g_echo "BASH-shell":) "
+echo "export KUBECONFIG=$(pwd)/bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig"
+
+echo "set -x KUBECONFIG $(pwd)/bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig" >> ./bootstrap_out/set_kubeconfigs.txt
+echo "export KUBECONFIG=$(pwd)/bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig" >> ./bootstrap_out/set_kubeconfigs.txt
+sort -u ./bootstrap_out/set_kubeconfigs.txt -o ./bootstrap_out/set_kubeconfigs.txt
+
 # Wait for kube-scheduler 
 echo "$(g_echo NAVARCOS:INFO:) Waiting for kube scheduler"
 until kubectl wait --timeout 300s --for=condition=ready pod -n kube-system -l component=kube-scheduler --kubeconfig ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig; do sleep 1; done
@@ -119,3 +141,21 @@ cp "./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig" "./b
 NAVARCOS_KEYCLOAK_RESULT=$(curl -s -k -H "Content-Type: application/json" -H "Authorization: bearer ${NAVARCOS_KEYCLOAK_TOKEN}" "https://${NAVARCOS_KEYCLOAK_URL}/admin/realms/${K8S_TENANT_REALM}/clients")
 export K8S_OIDC_SECRET=$(echo "${NAVARCOS_KEYCLOAK_RESULT}" | jq --arg skafos_clientId ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}-users -r '.[] | select(.clientId==$skafos_clientId) | .secret')
 yq -i e '.contexts[0].context.user = "oidc" | del(.users[0]) |with(.users[0]; .name = "oidc" | with(.user.exec; .apiVersion = "client.authentication.k8s.io/v1beta1" | .command = "kubectl" | .env = null | .provideClusterInfo = false | .args = ["oidc-login","get-token","--oidc-issuer-url="+strenv(K8S_OIDC_PROVIDER),"--oidc-client-id="+strenv(K8S_TENANT_NAMESPACE)+"-"+strenv(K8S_CLUSTER_NAME)+"-users","--oidc-client-secret="+strenv(K8S_OIDC_SECRET)]))' "./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}-users.kubeconfig"
+
+echo "$(g_echo "to access the cluster as admin set the KUBECONFIG variable:")"
+
+
+echo "$(g_echo "Fish-shell":)" 
+echo "set -x KUBECONFIG $(pwd)/bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig"
+echo "$(g_echo "BASH-shell":) "
+echo "export KUBECONFIG=$(pwd)/bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig"
+
+echo "##################### Info Cluster #####################" >> ./bootstrap_out/info-${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.txt
+echo "##### environment: $environment" >> ./bootstrap_out/info-${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.txt
+echo "####### namespace: ${K8S_TENANT_NAMESPACE}" >> ./bootstrap_out/info-${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.txt
+echo "########### realm: ${K8S_TENANT_REALM}" >> ./bootstrap_out/info-${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.txt
+echo "######### cluster: ${K8S_CLUSTER_NAME}" >> ./bootstrap_out/info-${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.txt
+echo "######## keycloak: https://${NAVARCOS_KEYCLOAK_URL}/" >> ./bootstrap_out/info-${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.txt
+echo "# keycloack-admin: ncadmin" >> ./bootstrap_out/info-${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.txt
+echo "############ bash: export KUBECONFIG=$(pwd)/bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig" >> ./bootstrap_out/info-${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.txt
+echo "############ fish: set -x KUBECONFIG $(pwd)/bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig" >> ./bootstrap_out/info-${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.txt

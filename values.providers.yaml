@@ -1,4 +1,6 @@
 clusterapi:
+  kubevirt:
+    targetRevision: v0.1.9
   capi:
     targetRevision: v1.6.3
   vsphere:

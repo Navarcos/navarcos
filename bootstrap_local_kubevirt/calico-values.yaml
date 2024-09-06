@@ -1,0 +1,7 @@
+tigera-operator:
+  installation:
+    enabled: true
+    calicoNetwork:
+      ipPools:
+      - cidr: "10.243.0.0/16"
+        encapsulation: "VXLAN"

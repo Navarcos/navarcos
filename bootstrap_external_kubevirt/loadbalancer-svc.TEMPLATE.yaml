@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${K8S_CLUSTER_NAME}-lb
+  labels:
+    cluster.x-k8s.io/cluster-name: ${K8S_CLUSTER_NAME}
+    navarcos.cluster: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+spec:
+  type: LoadBalancer
+${K8S_STATIC_LOADBALANCER_IP}
+  ports:
+    - port: 6443
+      targetPort: 6443
+      protocol: TCP
+  selector:
+    cluster.x-k8s.io/cluster-name: ${K8S_CLUSTER_NAME}
+    cluster.x-k8s.io/role: control-plane

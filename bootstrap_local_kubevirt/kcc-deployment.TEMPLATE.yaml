@@ -1,0 +1,103 @@
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cluster-kcc-${K8S_CLUSTER_NAME}
+  labels:
+    navarcos.cluster: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system:cluster-kcc-${K8S_CLUSTER_NAME}
+  labels:
+    navarcos.cluster: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: cluster-kcc-${K8S_CLUSTER_NAME}
+  namespace: ${K8S_TENANT_NAMESPACE}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    navarcos.cluster: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+    app: kubevirt-cloud-controller-manager
+    capk.cluster.x-k8s.io/template-kind: extra-resource
+    cluster.x-k8s.io/cluster-name: ${K8S_CLUSTER_NAME}
+  name: ${K8S_CLUSTER_NAME}-kcc
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: kubevirt-cloud-controller-manager
+      capk.cluster.x-k8s.io/template-kind: extra-resource
+      cluster.x-k8s.io/cluster-name: ${K8S_CLUSTER_NAME}
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: kubevirt-cloud-controller-manager
+        capk.cluster.x-k8s.io/template-kind: extra-resource
+        cluster.x-k8s.io/cluster-name: ${K8S_CLUSTER_NAME}
+    spec:
+      containers:
+      - args:
+        - --cloud-provider=kubevirt
+        - --cloud-config=/etc/cloud-config
+        - --kubeconfig=/etc/tenant-kubeconfig
+        - --cluster-name=${K8S_CLUSTER_NAME}
+        - --authentication-skip-lookup=true
+        command:
+        - /bin/kubevirt-cloud-controller-manager
+        image: quay.io/kubevirt/kubevirt-cloud-controller-manager:main
+        imagePullPolicy: Always
+        name: kubevirt-cloud-controller-manager
+        resources:
+          requests:
+            cpu: 200m
+        securityContext:
+          privileged: true
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+          - mountPath: "/etc/cloud-config"
+            name: cloud-config
+            subPath: cloud-config
+            readOnly: true
+          - mountPath: "/etc/infra-kubeconfig"
+            subPath: infra-kubeconfig
+            name: infra-kubeconfig
+            readOnly: true
+          - mountPath: "/etc/tenant-kubeconfig"
+            subPath: tenant-kubeconfig
+            name: tenant-kubeconfig
+            readOnly: true
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      serviceAccount: cluster-kcc-${K8S_CLUSTER_NAME}
+      serviceAccountName: cluster-kcc-${K8S_CLUSTER_NAME}
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: cloud-config
+          secret:
+            secretName: cloud-config
+        - name: infra-kubeconfig
+          secret:
+            secretName: infra-kubeconfig
+        - name: tenant-kubeconfig
+          secret:
+            secretName: tenant-kubeconfig
