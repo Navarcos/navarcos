@@ -1,7 +1,7 @@
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: ClusterClass
 metadata:
-  name: skafos
+  name: cclass-${K8S_CLUSTER_NAME}
   namespace: ${K8S_TENANT_NAMESPACE}
 spec:
   controlPlane:
@@ -11,16 +11,16 @@ spec:
       ref:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: DockerMachineTemplate
-        name: skafos-cp
+        name: ${K8S_CLUSTER_NAME}-cp
     ref:
       apiVersion: controlplane.cluster.x-k8s.io/v1beta1
       kind: KubeadmControlPlaneTemplate
-      name: skafos-cp
+      name: ${K8S_CLUSTER_NAME}-cp
   infrastructure:
     ref:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
       kind: DockerClusterTemplate
-      name: skafos-cluster
+      name: ${K8S_CLUSTER_NAME}-cluster
   patches:
   - definitions:
     - jsonPatches:
@@ -98,7 +98,13 @@ spec:
       - op: add
         path: /spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs
         value:
-          admission-control-config-file: /etc/kubernetes/kube-apiserver-admission-pss.yaml
+          admission-control-config-file: /etc/kubernetes/kube-apiserver-admission-pss.yaml 
+          oidc-client-id: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+          oidc-groups-claim: groups
+          oidc-issuer-url: ${K8S_OIDC_PROVIDER}
+          oidc-username-claim: preferred_username
+          oidc-username-prefix: 'oidc:'
+          oidc-ca-file: /etc/kubernetes/pki/oidc-ca.crt
       - op: add
         path: /spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes
         value:
@@ -107,10 +113,18 @@ spec:
           name: admission-pss
           pathType: File
           readOnly: true
+        - hostPath: /etc/kubernetes/pki/oidc-ca.crt
+          mountPath: /etc/kubernetes/pki/oidc-ca.crt
+          name: oidc-ca
+          pathType: File
+          readOnly: true
       - op: add
         path: /spec/template/spec/kubeadmConfigSpec/files
         valueFrom:
           template: |
+            - content: |
+${NAVARCOS_CA_docker}
+              path: /etc/kubernetes/pki/oidc-ca.crt
             - content: |
                 apiVersion: apiserver.config.k8s.io/v1
                 kind: AdmissionConfiguration
@@ -201,17 +215,17 @@ spec:
           ref:
             apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
             kind: KubeadmConfigTemplate
-            name: skafos-default-wk-bootstraptemplate
+            name: ${K8S_CLUSTER_NAME}-default-wk-bootstraptemplate
         infrastructure:
           ref:
             apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
             kind: DockerMachinePoolTemplate
-            name: skafos-default-wk-machinepooltemplate
+            name: ${K8S_CLUSTER_NAME}-default-wk-machinepooltemplate
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerClusterTemplate
 metadata:
-  name: skafos-cluster
+  name: ${K8S_CLUSTER_NAME}-cluster
   namespace: ${K8S_TENANT_NAMESPACE}
 spec:
   template:
@@ -220,7 +234,7 @@ spec:
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlaneTemplate
 metadata:
-  name: skafos-cp
+  name: ${K8S_CLUSTER_NAME}-cp
   namespace: ${K8S_TENANT_NAMESPACE}
 spec:
   template:
@@ -233,30 +247,15 @@ spec:
             - 127.0.0.1
             - 0.0.0.0
             - host.docker.internal
-            extraArgs:
-              oidc-client-id: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
-              oidc-groups-claim: groups
-              oidc-issuer-url: ${K8S_OIDC_PROVIDER}
-              oidc-username-claim: preferred_username
-              oidc-username-prefix: 'oidc:'
+            extraArgs: {}
           controllerManager:
             extraArgs:
               enable-hostpath-provisioner: "true"
-        files:
-        - content: |
-${NAVARCOS_CA}
-          owner: root:root
-          permissions: "0644"
-          path: /usr/local/share/ca-certificates/navarcos-ca.crt
-        initConfiguration:
-          nodeRegistration: {}
-        joinConfiguration:
-          nodeRegistration: {}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerMachineTemplate
 metadata:
-  name: skafos-cp
+  name: ${K8S_CLUSTER_NAME}-cp
   namespace: ${K8S_TENANT_NAMESPACE}
 spec:
   template:
@@ -268,7 +267,7 @@ spec:
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: DockerMachinePoolTemplate
 metadata:
-  name: skafos-default-wk-machinepooltemplate
+  name: ${K8S_CLUSTER_NAME}-default-wk-machinepooltemplate
   namespace: ${K8S_TENANT_NAMESPACE}
 spec:
   template:
@@ -278,32 +277,13 @@ spec:
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
 metadata:
-  name: skafos-default-wk-bootstraptemplate
+  name: ${K8S_CLUSTER_NAME}-default-wk-bootstraptemplate
   namespace: ${K8S_TENANT_NAMESPACE}
-spec:
-  template:
-    spec:
-      clusterConfiguration:
-        apiServer:
-          extraArgs:
-            oidc-client-id: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
-            oidc-groups-claim: groups
-            oidc-issuer-url: ${K8S_OIDC_PROVIDER}
-            oidc-username-claim: preferred_username
-            oidc-username-prefix: 'oidc:'
-      files:
-      - content: |
-${NAVARCOS_CA}
-        owner: root:root
-        permissions: "0644"
-        path: /usr/local/share/ca-certificates/navarcos-ca.crt
-      joinConfiguration:
-        nodeRegistration: {}
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
-  name: ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+  name: ${K8S_CLUSTER_NAME}
   namespace: ${K8S_TENANT_NAMESPACE}
 spec:
   clusterNetwork:
@@ -315,7 +295,7 @@ spec:
       cidrBlocks:
       - 10.128.0.0/12
   topology:
-    class: skafos
+    class: cclass-${K8S_CLUSTER_NAME}
     controlPlane:
       metadata: {}
       replicas: ${K8S_MASTER_NODES}
@@ -332,7 +312,7 @@ spec:
         enabled: true
         enforce: baseline
         warn: restricted
-    version: v${K8S_VERSION}
+    version: ${K8S_VERSION}
     workers:
       machinePools:
       - class: default-wk

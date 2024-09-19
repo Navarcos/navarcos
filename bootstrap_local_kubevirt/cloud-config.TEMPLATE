@@ -1,8 +1,0 @@
-kubeconfig: /etc/infra-kubeconfig
-loadBalancer:
-  creationPollInterval: 5
-  creationPollTimeout: 60
-namespace: ${K8S_TENANT_NAMESPACE}
-instancesV2:                                                                                                     
-  enabled: true                                                                                                  
-  zoneAndRegionEnabled: false 

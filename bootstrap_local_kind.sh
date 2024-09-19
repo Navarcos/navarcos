@@ -24,7 +24,6 @@ for graph in ./graph/*; do
 done
 echo -e "$HEADER"
 
-
 # Check for existing values file or use test one
 if [ ! -f "values.yaml" ]
 then
@@ -40,7 +39,7 @@ fi
 check_sysctl
 
 # ENV variables in commons.env are generated from NAVARCOS_VALUES_FILE
-source ./commons.env
+source ./bootstrap_local_kind_yaml/kind-navarcos-commons.env
 
 # Execute the command and store the output as an array
 mapfile -t CLUSTERS_ARRAY < <(kind get clusters)
@@ -85,12 +84,20 @@ if [ "${NAVARCOS_KIND_UPDATE}" != true ]; then
     fi
 fi
 
-# Get Navarcos Kind Ingress IP address to access services
-export NAVARCOS_DOMAIN_SUFFIX=".$(kubectl get node navarcos-control-plane -o jsonpath='{.status.addresses[0].address}').nip.io"
-echo "$(g_echo NAVARCOS:INFO:) Kind Navarcos domain: $(g_echo ${NAVARCOS_DOMAIN_SUFFIX})"
+
+
+#DISABLE INGRESS IP, FLAVOUR METALLB
+
+                                # # Get Navarcos Kind Ingress IP address to access services
+                                # export NAVARCOS_DOMAIN_SUFFIX=".$(kubectl get node navarcos-control-plane -o jsonpath='{.status.addresses[0].address}').nip.io"
+                                # echo "$(g_echo NAVARCOS:INFO:) Kind Navarcos domain: $(g_echo ${NAVARCOS_DOMAIN_SUFFIX})"
+
+#DISABLE INGRESS IP, FLAVOUR METALLB
+
+
 
 # Refresh ENV variables to account for Kind Navarcos Ingress IP
-source ./commons.env
+source ./bootstrap_local_kind_yaml/kind-navarcos-commons.env
 
 # Files to be rendered in ./bootstrap_out/
 declare -A YAML_FILES
@@ -108,17 +115,7 @@ do
     fi
 done
 
-# Render files in ./bootstrap_out/
-for i in "${!YAML_FILES[@]}"
-do
-    echo "$(g_echo NAVARCOS:INFO:) Rendering ${YAML_FILES[$i]} from $i"
-    envsubst < "$i" > "${BOOTSTRAP_OUT}/${YAML_FILES[$i]}"
-    yq "${YAML_FILES[$i]}" > /dev/null
-    if [ $? != 0 ] ; then
-        echo "$(r_echo NAVARCOS:ERROR:) Invalid YAML in ${YAML_FILES[$i]}"
-        exit 1
-    fi
-done
+
 
 if [ "${NAVARCOS_KIND_UPDATE}" == true ]; then
     echo "$(g_echo NAVARCOS:INFO:) Values updated. Exiting"
@@ -149,7 +146,77 @@ if [ $? != 0 ];then
     echo "$(r_echo NAVARCOS:ERROR:) Error installing Tigera/Calico Operator"
     exit 1
 fi
+############################################### ADDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD
 
+echo "$(g_echo NAVARCOS:INFO:) Installing MetalLB"
+if kubectl get namespace metallb-system 2>&1; then
+  echo "MetalLB namespace already exist!"
+else
+  #Installing MetalLB on Infra-cluster
+
+#   METALLB_VER=$(curl -s "https://api.github.com/repos/metallb/metallb/releases/latest" | jq -r ".tag_name")
+#   kubectl apply -f "https://raw.githubusercontent.com/metallb/metallb/${METALLB_VER}/config/manifests/metallb-native.yaml"
+  kubectl apply -f ./bootstrap_yaml/metallb.yaml
+  kubectl wait pods -n metallb-system -l app=metallb,component=controller --for=condition=Ready --timeout=10m
+  kubectl wait pods -n metallb-system -l app=metallb,component=speaker --for=condition=Ready --timeout=2m
+  echo "$(g_echo NAVARCOS:INFO:) Installed MetalLB"
+
+
+  echo "$(g_echo NAVARCOS:INFO:) creating MetalLB IpAddressPool based on docker network on Infra-cluster"
+  GW_IP=$(docker network inspect -f '{{range .IPAM.Config}}{{.Gateway}}{{end}}' kind)
+  NET_IP=$(echo ${GW_IP} | sed -E 's|^([0-9]+\.[0-9]+)\..*$|\1|g')
+cat <<EOF | sed -E "s|172.19|${NET_IP}|g" | kubectl apply -f -
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: capi-ip-poolyaml
+  namespace: metallb-system
+spec:
+  addresses:
+  - 172.19.255.200-172.19.255.250
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: empty
+  namespace: metallb-system
+EOF
+fi
+
+
+
+export INGRESS_VIP=$(kubectl get ipaddresspool capi-ip-poolyaml -n metallb-system -o jsonpath='{.spec.addresses[0]}' | awk -F '-' '{print $2}')
+export NAVARCOS_DOMAIN_SUFFIX=".${INGRESS_VIP}.nip.io"
+echo "$(g_echo NAVARCOS:INFO:) Kind Navarcos domain: $(g_echo ${NAVARCOS_DOMAIN_SUFFIX})"
+envsubst < ./bootstrap_yaml/ingress-hack-kind-values.TEMPLATE.yaml > ./bootstrap_out/ingress-hack-kind-values.yaml
+
+# Render files in ./bootstrap_out/
+for i in "${!YAML_FILES[@]}"
+do
+    echo "$(g_echo NAVARCOS:INFO:) Rendering ${YAML_FILES[$i]} from $i"
+    envsubst < "$i" > "${BOOTSTRAP_OUT}/${YAML_FILES[$i]}"
+    yq "${YAML_FILES[$i]}" > /dev/null
+    if [ $? != 0 ] ; then
+        echo "$(r_echo NAVARCOS:ERROR:) Invalid YAML in ${YAML_FILES[$i]}"
+        exit 1
+    fi
+done
+# envsubst < ./test/values.TEMPLATE.yaml > ./test/values.yaml 
+# # For Navarcos/Plancia
+# if [[ ! $NAVARCOS_DOMAIN_SUFFIX ]]; then
+#     export NAVARCOS_DOMAIN_SUFFIX=$(yq '.navarcos.domainSuffix' < ${NAVARCOS_VALUES_FILE})
+# fi
+export NAVARCOS_KEYCLOAK_URL="https://keycloak${NAVARCOS_DOMAIN_SUFFIX}"
+export NAVARCOS_GITLAB_URL="https://gitlab${NAVARCOS_DOMAIN_SUFFIX}"
+export NAVARCOS_HARBOR_URL="https://harbor${NAVARCOS_DOMAIN_SUFFIX}"
+export NAVARCOS_OPENSEARCH_URL="https://opensearch${NAVARCOS_DOMAIN_SUFFIX}"
+export NAVARCOS_GRAFANA_URL="https://grafana${NAVARCOS_DOMAIN_SUFFIX}"
+export NAVARCOS_OAUTH2PROXY_URL="https://auth${NAVARCOS_DOMAIN_SUFFIX}"
+export NAVARCOS_DASHBOARDS_URL="https://dashboard${NAVARCOS_DOMAIN_SUFFIX}"
+export NAVARCOS_PLANCIA_BE_URL="https://plancia-api${NAVARCOS_DOMAIN_SUFFIX}"
+export NAVARCOS_PLANCIA_FE_URL="https://plancia${NAVARCOS_DOMAIN_SUFFIX}"
+
+############################################### ADDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD
 echo "$(g_echo NAVARCOS:INFO:) Install metrics-server"
 helm upgrade metrics-server metrics-server-navarcos --install --wait --namespace kube-system \
     --version $(yq '.navarcos.metricsServer.targetRevision' < values.providers.yaml) \
@@ -196,8 +263,11 @@ echo "$(g_echo NAVARCOS:INFO:) Install Ingress NGINX"
 helm upgrade ingress-nginx ingress-nginx --install --wait --create-namespace --namespace ingress-nginx \
     --version $(yq '.navarcos.ingressNginx.targetRevision' < values.providers.yaml) \
     --repo https://kubernetes.github.io/ingress-nginx \
-    --values https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/hack/manifest-templates/provider/kind/values.yaml \
+    --values ./bootstrap_out/ingress-hack-kind-values.yaml \
     --values ./bootstrap_yaml/ingress-nginx.values.yaml
+
+        # --values https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/hack/manifest-templates/provider/kind/values.yaml
+
 if [ $? != 0 ];then
     echo "$(r_echo NAVARCOS:ERROR:) Error installing Ingress NGINX"
     exit 1

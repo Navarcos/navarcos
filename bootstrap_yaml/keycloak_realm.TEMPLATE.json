@@ -168,7 +168,9 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "/users/auth/openid_connect/callback"
+        "/users/auth/openid_connect/callback",
+        "http://localhost:8000",
+        "http://localhost:18000"
       ],
       "webOrigins": [
         "/*"
@@ -220,7 +222,9 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "/users/auth/openid_connect/callback"
+        "/users/auth/openid_connect/callback",
+        "http://localhost:8000",
+        "http://localhost:18000"
       ],
       "webOrigins": [
         "/*"

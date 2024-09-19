@@ -1,0 +1,19 @@
+environments: 
+  docker:
+    tenant_namespace: "skafosd"
+    tenant_realm: "realmskafosd"
+    cluster_name: "clusterskafosd"
+    control_planes: 1
+    worker_nodes: 1
+  kubevirt:
+    tenant_namespace: "skafosk"
+    tenant_realm: "realmskafosk"
+    cluster_name: "clusterskafosk"
+    control_planes: 1
+    worker_nodes: 1
+  kubevirtext:
+    tenant_namespace: "skafosk-ext"
+    tenant_realm: "realmskafosk-ext"
+    cluster_name: "clusterskafosk-ext"
+    control_planes: 1
+    worker_nodes: 1

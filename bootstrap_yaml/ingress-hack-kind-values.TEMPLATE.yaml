@@ -1,0 +1,12 @@
+controller:
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  hostPort:
+    enabled: true
+  terminationGracePeriodSeconds: 0
+  service:
+    type: LoadBalancer
+    loadBalancerIP: ${INGRESS_VIP}
+  watchIngressWithoutClass: true

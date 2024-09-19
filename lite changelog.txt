@@ -1,0 +1,21 @@
+CHANGELOG:
+    bootstrap_local_kind
+        changed commons.env name which is navarcos management cluster specific in kind-navarcos-commons.env
+        NAVARCOS_DOMAIN_SUFFIX variable has different behavior now since we start using metallb loadbalancer to fix keycloak changing IP following by kind node ip changes
+        add metallb installation on bootstrap local kind (navarcos management cluster) which is needed for keycloak and kubevirt provider with kube cloud controller
+        removed curl reference to yaml manifest, loaded from local ./bootstrap_yaml
+        removed settings from kind_cluster.config.yaml extralabels for nginx ingress, and extraportmapping since we manage with loadbalancer now.
+        removed   "domainSuffix: .127.0.0.1.nip.io" from values.yaml since we using docker network bridge with local IP dinamically obtained.
+        added util function to check controlplane number RAFT requirements (etcd)
+        added util function progressbar to add tui about download ubuntu image and datavolume cloning
+    create_clusters
+        removed all creation specific script (kubevirt, docker, kubevirtext)
+        removed interactive script
+        created a single script that manage all the options (interactive, auto, partial-auto)
+        created values.environment.yaml to provide defaults for specific environment (kubevirt, docker, kubevirtext)
+        fixed non working users login through OIDC:
+            fixed keycloak realm creation redirectUris (localhost:8000, localhost:18000)
+            fixed ca-certificate navarcos-ca on apiserver definition using oidc-ca-file and mounting certificate (docker on clusterclass, kubevirt on controlplanedefinition)
+        removed OIDC references on kubevirtext implementation since apiserver cannot reach keycloak into kind navarcos.
+not-fixed:
+        in kubevirtext implementation, keycloak realm parameter is still present in defaults and interactive mode, but it's useless since we do not create realm for kubevirtext (apiserver cannot reach kind keycloak)

@@ -1,7 +1,6 @@
 navarcos:
   env: dev
   clusterName: navarcos
-  domainSuffix: .127.0.0.1.nip.io
   networkDHCP: true
 
 vsphere:
