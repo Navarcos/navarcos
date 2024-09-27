@@ -1,4 +1,6 @@
 clusterapi:
+  openstack:
+    targetRevision: v0.10.5
   kubevirt:
     targetRevision: v0.1.9
   capi:

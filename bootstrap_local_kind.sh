@@ -252,6 +252,7 @@ clusterctl init --wait-providers \
     --infrastructure docker:$(yq '.clusterapi.capi.targetRevision' < values.providers.yaml) \
     --infrastructure vsphere:$(yq '.clusterapi.vsphere.targetRevision' < values.providers.yaml) \
     --infrastructure kubevirt:$(yq '.clusterapi.kubevirt.targetRevision' < values.providers.yaml) \
+    --infrastructure openstack:$(yq '.clusterapi.openstack.targetRevision' < values.providers.yaml) \
     --ipam incluster:$(yq '.clusterapi.ipam.targetRevision' < values.providers.yaml) \
     --config ./bootstrap_yaml/clusterctl-IPAM.config.yaml
 if [ $? != 0 ];then
