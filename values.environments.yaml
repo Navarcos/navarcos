@@ -17,3 +17,9 @@ environments:
     cluster_name: "clusterskafosk-ext"
     control_planes: 1
     worker_nodes: 1
+  openstack:
+    tenant_namespace: "skafoso"
+    tenant_realm: "realmskafoso"
+    cluster_name: "clusterskafoso"
+    control_planes: 1
+    worker_nodes: 1
