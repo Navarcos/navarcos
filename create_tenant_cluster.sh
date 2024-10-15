@@ -56,7 +56,7 @@ Examples:
       ./create_tenant_cluster.sh -e kubevirt -c cluster-kubevirt -n namespace-kubevirt -r realm-kubevirt -m 3 -w 1
 
 Options:
-  -e            supported environment in ["docker", "kubevirt", "kubevirtext"]
+  -e            supported environment in ["docker", "kubevirt", "kubevirtext", "openstack"]
   -c            cluster name
   -n            tenant namespace
   -r            keycloak tenant realm
@@ -138,7 +138,7 @@ if [ "$installmode" = "auto" ] && [ -z "$environment" ]; then
 fi
 
 if [ ! -z "$environment" ]; then
-  if [ "$environment" = "docker" ] || [ "$environment" = "kubevirt" ] || [ "$environment" = "kubevirtext" ]; then
+  if [ "$environment" = "docker" ] || [ "$environment" = "kubevirt" ] || [ "$environment" = "kubevirtext" ] || [ "$environment" = "openstack" ]; then
     echo "$(g_echo '######### installing on:') $environment"
   else
     echo "$(r_echo '######### environment not supported'): $environment "
@@ -201,7 +201,7 @@ if [ "$installmode" == "interactive" ] || [ "$installmode" == "interactive_parti
 
   if [ -z $environment ]; then
       PS3='Choose kubernetes cluster destination environment: '
-      select environment in "Docker" "Kubevirt(in Kind)" "Kubevirt(External Cluster)"; do
+      select environment in "Openstack" "Docker" "Kubevirt(in Kind)" "Kubevirt(External Cluster)"; do
         export environment
           if [[ $REPLY == "0" ]]; then
               echo 'Exiting!' >&2
@@ -215,6 +215,10 @@ if [ "$installmode" == "interactive" ] || [ "$installmode" == "interactive_parti
                   ;;
                 "Kubevirt(in Kind)")
                   environment="kubevirt"
+                  break
+                  ;;
+                "Openstack")
+                  environment="openstack"
                   break
                   ;;
                 "Kubevirt(External Cluster)")
@@ -345,11 +349,73 @@ if [ "$environment" == "kubevirtext" ]; then
     
 fi
 
+EXPECTED_NODES=$((K8S_MASTER_NODES + K8S_WORKER_NODES)) 
+
+if [ "$environment" == "openstack" ]; then
+  mkdir ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+    read -p "Insert fullpath openstack admin.sh file: " OPENSTACK_CLOUDADMINFILE
+    read -p "Insert fullpath openstack cloud yaml file: " OPENSTACK_CLOUDFILE
+    # read -p "openstack cloud name: " OPENSTACK_CLOUDNAME
+    export OPENSTACK_CLOUDNAME="openstack"
+    # read -p "Openstack kube image NAME to use (need to be already present in your openstack server): " OPENSTACK_IMAGE_NAME
+    # # read -p "Openstack key NAME to use (need to be already present, you generate from openstack gui): " OPENSTACK_SSH_KEY_NAME
+    # # read -p "Openstack external network ID to use: " OPENSTACK_EXTERNAL_NETWORK_ID
+    # read -p "Openstack DNS NAMESERVER to use: " OPENSTACK_DNS_NAMESERVERS
+    # read -p "Openstack control plane flavor: " OPENSTACK_CONTROL_PLANE_MACHINE_FLAVOR
+    # read -p "Openstack worker node flavor: " OPENSTACK_NODE_MACHINE_FLAVOR
+    # # read -p "Openstack failure domain (most like 'nova' if you are using devstack): " OPENSTACK_FAILURE_DOMAIN
+
+  # export OPENSTACK_IMAGE_NAME="ubuntu-2204kube"
+  # export OPENSTACK_SSH_KEY_NAME="key"
+  # export OPENSTACK_EXTERNAL_NETWORK_ID="10966dde-9a42-44ba-b280-12fbe8372826"
+  # export OPENSTACK_FAILURE_DOMAIN="nova"
+  # export OPENSTACK_DNS_NAMESERVERS=8.8.8.8
+  # export KUBERNETES_VERSION="1.29.7"
+  # export OPENSTACK_CONTROL_PLANE_MACHINE_FLAVOR="customKubeFlavor"
+  # export OPENSTACK_NODE_MACHINE_FLAVOR="customKubeFlavor"
+
+
+    source ${OPENSTACK_CLOUDADMINFILE}
+    source env.rc ${OPENSTACK_CLOUDFILE} ${OPENSTACK_CLOUDNAME}
+
+
+
+  export OPENSTACK_IMAGE_NAME="ubuntu-2204kube"
+  # export OPENSTACK_SSH_KEY_NAME
+  # export OPENSTACK_EXTERNAL_NETWORK_ID
+  export OPENSTACK_FAILURE_DOMAIN="nova"
+  export OPENSTACK_DNS_NAMESERVERS="8.8.8.8"
+  # export KUBERNETES_VERSION
+  export OPENSTACK_CONTROL_PLANE_MACHINE_FLAVOR="s.2c4gb50"
+  export OPENSTACK_NODE_MACHINE_FLAVOR="s.2c4gb50 "
+
+export OPENSTACK_EXTERNAL_NETWORK_ID=$(openstack network list --name ext-net -c ID -f value)
+
+openstack keypair create --private-key ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_CLUSTER_NAME}-key ${K8S_CLUSTER_NAME}-key
+
+
+export OS_SECRET_KEY=$(tr -dc 'A-Za-z0-9!?%=' < /dev/urandom | head -c 10)
+
+
+  openstack application credential create navarcos-${K8S_CLUSTER_NAME}-ccm --secret ${OS_SECRET_KEY} --description "Application credential for Kubernetes CCM" 
+  
+  # --role admin
+
+export OS_CRED_ID=$(openstack application credential show navarcos-${K8S_CLUSTER_NAME}-ccm  -c id --noindent --format value)
+
+
+
 
 export CLUSTOUTFOLDER="./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}"
 export TENANTKUBECONFIG="./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig"
 export TENANTUSERSKUBECONFIG="./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}-users.kubeconfig"
 
+envsubst < ./bootstrap_yaml/cloud.TEMPLATE.conf > ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/cloud.conf
+
+
+
+
+fi
 # debug
 
 # echo environment $environment
@@ -371,7 +437,7 @@ export TENANTUSERSKUBECONFIG="./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUS
 
   mkdir ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
 # set infra-kubeconfig to kind (needed to avoid changing code in case of kubevirtext which use "infra-kubeconfig" for destination infra cluster)
-if [ "$environment" == "kubevirt" ] || [ "$environment" == "docker" ] ; then
+if [ "$environment" == "kubevirt" ] || [ "$environment" == "docker" ] || [ "$environment" == "openstack" ]; then
   kind get kubeconfig --name navarcos> $CLUSTOUTFOLDER/infra-kubeconfig
   INFRAKUBECONFIG=$CLUSTOUTFOLDER/infra-kubeconfig
 fi
@@ -380,48 +446,53 @@ if [ "$environment" == "docker" ]; then
   export K8S_VERSION="v1.27.13"
 fi
 
+
+if [ "$environment" == "openstack" ]; then
+  export K8S_VERSION="v1.29.7"
+fi
+
 if [ "$environment" == "kubevirt" ] || [ "$environment" == "kubevirtext" ] ; then
 export CAPK_GUEST_K8S_VERSION="v1.27.14"
 export CRI_PATH="/var/run/containerd/containerd.sock"
 export NODE_VM_IMAGE_TEMPLATE="quay.io/capk/ubuntu-2204-container-disk:${CAPK_GUEST_K8S_VERSION}"
 fi
 
-if [ "$environment" == "kubevirt" ] ;then
-  echo "$(g_echo                     NAVARCOS:INFO:) Installing MetalLB on Infra-cluster"
-  if kubectl get namespace metallb-system 2>&1 ; then 
-    echo "MetalLB namespace already exist!"
-  else
-    #Installing MetalLB on Infra-cluster
+# if [ "$environment" == "kubevirt" ] ;then
+#   echo "$(g_echo                     NAVARCOS:INFO:) Installing MetalLB on Infra-cluster"
+#   if kubectl get namespace metallb-system 2>&1 ; then 
+#     echo "MetalLB namespace already exist!"
+#   else
+#     #Installing MetalLB on Infra-cluster
 
-    # METALLB_VER=$(curl -s "https://api.github.com/repos/metallb/metallb/releases/latest" | jq -r ".tag_name")
-    # kubectl apply -f "https://raw.githubusercontent.com/metallb/metallb/${METALLB_VER}/config/manifests/metallb-native.yaml"
-    kubectl apply -f ./bootstrap_yaml/metallb.yaml
-    kubectl wait pods -n metallb-system -l app=metallb,component=controller --for=condition=Ready --timeout=10m
-    kubectl wait pods -n metallb-system -l app=metallb,component=speaker --for=condition=Ready --timeout=2m
-    echo "$(g_echo                     NAVARCOS:INFO:) Installed MetalLB on Infra-cluster"
+#     # METALLB_VER=$(curl -s "https://api.github.com/repos/metallb/metallb/releases/latest" | jq -r ".tag_name")
+#     # kubectl apply -f "https://raw.githubusercontent.com/metallb/metallb/${METALLB_VER}/config/manifests/metallb-native.yaml"
+#     kubectl apply -f ./bootstrap_yaml/metallb.yaml
+#     kubectl wait pods -n metallb-system -l app=metallb,component=controller --for=condition=Ready --timeout=10m
+#     kubectl wait pods -n metallb-system -l app=metallb,component=speaker --for=condition=Ready --timeout=2m
+#     echo "$(g_echo                     NAVARCOS:INFO:) Installed MetalLB on Infra-cluster"
 
 
-    echo "$(g_echo                     NAVARCOS:INFO:) creating MetalLB IpAddressPool based on docker network on Infra-cluster"
-    GW_IP=$(docker network inspect -f '{{range .IPAM.Config}}{{.Gateway}}{{end}}' kind)
-    NET_IP=$(echo ${GW_IP} | sed -E 's|^([0-9]+\.[0-9]+)\..*$|\1|g')
-cat <<EOF | sed -E "s|172.19|${NET_IP}|g" | kubectl apply -f -
-apiVersion: metallb.io/v1beta1
-kind: IPAddressPool
-metadata:
-  name: capi-ip-poolyaml
-  namespace: metallb-system
-spec:
-  addresses:
-  - 172.19.255.200-172.19.255.250
----
-apiVersion: metallb.io/v1beta1
-kind: L2Advertisement
-metadata:
-  name: empty
-  namespace: metallb-system
-EOF
-  fi
-  fi
+#     echo "$(g_echo                     NAVARCOS:INFO:) creating MetalLB IpAddressPool based on docker network on Infra-cluster"
+#     GW_IP=$(docker network inspect -f '{{range .IPAM.Config}}{{.Gateway}}{{end}}' kind)
+#     NET_IP=$(echo ${GW_IP} | sed -E 's|^([0-9]+\.[0-9]+)\..*$|\1|g')
+# cat <<EOF | sed -E "s|172.19|${NET_IP}|g" | kubectl apply -f -
+# apiVersion: metallb.io/v1beta1
+# kind: IPAddressPool
+# metadata:
+#   name: capi-ip-poolyaml
+#   namespace: metallb-system
+# spec:
+#   addresses:
+#   - 172.19.255.200-172.19.255.250
+# ---
+# apiVersion: metallb.io/v1beta1
+# kind: L2Advertisement
+# metadata:
+#   name: empty
+#   namespace: metallb-system
+# EOF
+#   fi
+#   fi
 
 
 
@@ -434,7 +505,8 @@ kubectl label namespace ${K8S_TENANT_NAMESPACE} navarcos.cluster=${K8S_TENANT_NA
 
 fi
 
-if [ "$environment" == "kubevirt" ] || [ "$environment" == "kubevirtext" ] ;then
+#down there was also: [ "$environment" == "kubevirt" ] || 
+if [ "$environment" == "kubevirtext" ] ;then
   echo "$(g_echo                     NAVARCOS:INFO:) Creating ${K8S_TENANT_NAMESPACE} namespace on Infra cluster"
   if kubectl get ns ${K8S_TENANT_NAMESPACE} --kubeconfig ${INFRAKUBECONFIG} 2>&1; then
       echo "Tenant namespace exist on infra cluster!"
@@ -442,6 +514,7 @@ if [ "$environment" == "kubevirt" ] || [ "$environment" == "kubevirtext" ] ;then
     kubectl create namespace ${K8S_TENANT_NAMESPACE} --kubeconfig ${INFRAKUBECONFIG}
     kubectl label namespace ${K8S_TENANT_NAMESPACE} navarcos.cluster=${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}  --kubeconfig ${INFRAKUBECONFIG}
   fi
+
   echo "$(g_echo                     NAVARCOS:INFO:) creating secret for CCM"
   kubectl create secret generic ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}-external-infra-kubeconfig --from-file=kubeconfig=${INFRAKUBECONFIG} -n capk-system
   kubectl label secret ${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}-external-infra-kubeconfig  navarcos.cluster=${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME} -n capk-system
@@ -466,7 +539,7 @@ if [ "$environment" == "kubevirt" ] || [ "$environment" == "kubevirtext" ] ;then
   fi
 
   #install CDI cr and operator
-  echo "$(g_echo                     NAVARCOS:INFO:) Installing Containerized Data Importer on Infra-cluster"
+  echo "$(g_echo                     NAVARCOS:INFO:) Installing Containerized Data Importer on Infra-clu  ster"
   if kubectl get namespace cdi --kubeconfig ${INFRAKUBECONFIG} 2>&1 ; then
     echo "CDI namespace exist!"
   else
@@ -670,7 +743,7 @@ if [ "$environment" == "kubevirtext" ]; then
   kubectl apply -f "$CLUSTOUTFOLDER/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.loadbalancer-svc.yaml" --kubeconfig=${INFRAKUBECONFIG} -n ${K8S_TENANT_NAMESPACE}
 fi
   while kubectl get secret ${K8S_CLUSTER_NAME}-kubeconfig -n ${K8S_TENANT_NAMESPACE} ; [ $? -ne 0 ] 2>/dev/null;do
-    sleep 1
+    sleep 10
     echo "Waiting for the kubeconfig creation"
   done
 # fi
@@ -750,6 +823,12 @@ sleep 10;
 done
 
 
+
+
+
+
+
+
 if [ "$environment" != "kubevirtext" ];then
   echo "$(g_echo                     NAVARCOS:INFO:) Generating kubeconfig for users in $(g_echo $TENANTUSERSKUBECONFIG)"
   cp "$TENANTKUBECONFIG" "$TENANTUSERSKUBECONFIG"
@@ -782,15 +861,38 @@ until [[ $(kubectl get nodes --kubeconfig=$TENANTKUBECONFIG | tail -n +2 | wc -l
 done
 echo "$(g_echo                     NAVARCOS:INFO:) All nodes has been created"
 
+
+
+
+if [ "$environment" == "openstack" ]; then
+kubectl --kubeconfig=./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig -n kube-system delete secret generic cloud-config
+
+kubectl --kubeconfig=./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig -n kube-system create secret generic cloud-config --from-file=./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/cloud.conf
+
+kubectl --kubeconfig=./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig -n kube-system create secret generic cloud-config
+
+      kubectl apply --kubeconfig=./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig -f https://raw.githubusercontent.com/kubernetes/cloud-provider-openstack/master/manifests/controller-manager/cloud-controller-manager-roles.yaml
+      kubectl apply --kubeconfig=./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig -f https://raw.githubusercontent.com/kubernetes/cloud-provider-openstack/master/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml
+      kubectl apply --kubeconfig=./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig -f https://raw.githubusercontent.com/kubernetes/cloud-provider-openstack/master/manifests/controller-manager/openstack-cloud-controller-manager-ds.yaml
+fi
+
+
+
+
+
 echo "$(g_echo                     NAVARCOS:INFO:) Installing Tigera/Calico CRDs"
 while ! helm upgrade calico-crds tigera-crds-navarcos --install --wait --create-namespace --namespace tigera-operator \
     --version $(yq '.clusterapi.tigera.targetRevision' < values.providers.yaml) \
     --repo https://navarcos.github.io/navarcos-charts \
     --kubeconfig $TENANTKUBECONFIG; do
-
 echo "Retrying calico crds installation"
 sleep 5
 done
+
+
+
+
+
 
 echo "$(g_echo                     NAVARCOS:INFO:) Enabling priviledged on Calico"
 kubectl label ns --kubeconfig $TENANTKUBECONFIG tigera-operator pod-security.kubernetes.io/enforce=privileged pod-security.kubernetes.io/warn=privileged pod-security.kubernetes.io/audit=privileged
@@ -951,3 +1053,7 @@ echo "######## keycloak: https://${NAVARCOS_KEYCLOAK_URL}/" >> ./bootstrap_out/$
 echo "# keycloack-admin: ncadmin" >> ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/info-${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.txt
 echo "######## bash/zsh: export KUBECONFIG=$(pwd)/bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig" >> ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/info-${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.txt
 echo "############ fish: set -x KUBECONFIG $(pwd)/bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig" >> ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/info-${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.txt
+
+
+
+
