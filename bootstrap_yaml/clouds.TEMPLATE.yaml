@@ -1,0 +1,15 @@
+clouds:
+  openstack:
+    auth:
+      auth_url: "${OS_AUTH_URL}"
+      username: ${OS_USERNAME}
+      password: ${OS_PASSWORD}
+      project_name: "${OS_PROJECT_NAME}"
+      project_id: "${OS_PROJECT_ID}"
+      tenant_name: "${OS_TENANT_NAME}"
+      user_domain_name: "${OS_USER_DOMAIN_NAME}"
+      project_domain_name: "${OS_PROJECT_DOMAIN_NAME}"
+    region_name: "${OS_REGION_NAME}"
+    interface: "${OS_INTERFACE_PUBLIC}"
+    identity_api_version: ${OS_IDENTITY_API_VERSION}
+    auth_version: ${OS_AUTH_VERSION}
