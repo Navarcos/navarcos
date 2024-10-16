@@ -512,6 +512,7 @@ fi
 # exit 1
 
 mkdir ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
+export CLUSTOUTFOLDER=./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}
 # set infra-kubeconfig to kind (needed to avoid changing code in case of kubevirtext which use "infra-kubeconfig" for destination infra cluster)
 if [ "$environment" == "kubevirt" ] || [ "$environment" == "docker" ] || [ "$environment" == "openstack" ]; then
     kind get kubeconfig --name navarcos> $CLUSTOUTFOLDER/infra-kubeconfig
@@ -730,6 +731,7 @@ while kubectl get secret ${K8S_CLUSTER_NAME}-kubeconfig -n ${K8S_TENANT_NAMESPAC
     echo "Waiting for the kubeconfig creation"
 done
 # fi
+export TENANTKUBECONFIG="./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig"
 
 while clusterctl get kubeconfig ${K8S_CLUSTER_NAME} -n ${K8S_TENANT_NAMESPACE} > $TENANTKUBECONFIG; [ $? -ne 0 ];do
     sleep 1
