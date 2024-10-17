@@ -374,22 +374,22 @@ if [ "$environment" == "openstack" ]; then
     ADMIN_OPENRC_PATH="./admin-openrc.sh" # Path al file openrc
     
     if [ -f "$ADMIN_OPENRC_PATH" ]; then
-        echo "admin-openrc.sh is available..."
+        echo "$(g_echo NAVARCOS:INFO:) admin-openrc.sh is available..."
         # mv "$ADMIN_OPENRC_PATH" $CLUSTOUTFOLDER
 
     else
-        echo "file admin-openrc.sh is not available on user_provided_data"
+        echo "$(y_echo NAVARCOS:WARN:) file admin-openrc.sh is not available"
         while true; do
-            echo "you should provide admin-openrc.sh in navarcos root folder or instead you can load variables manually:"
+            echo "$(g_echo NAVARCOS:INFO:) you should provide admin-openrc.sh in navarcos root folder or instead you can load variables manually:"
             echo "1) check again $ADMIN_OPENRC_PATH file "
             echo "2) manually provide variables "
             read -p "what's your choice: " choice
             
             if [[ "$choice" == "1" ]]; then
-                read -p "load file ($ADMIN_OPENRC_PATH) and press enter."
+                read -p "$(g_echo NAVARCOS:INFO:) load file ($ADMIN_OPENRC_PATH) and press enter."
                 
                 if [ -f "$ADMIN_OPENRC_PATH" ]; then
-                    echo "admin-openrc.sh is available..."
+                    echo "$(g_echo NAVARCOS:INFO:) admin-openrc.sh is available..."
                     # source "$ADMIN_OPENRC_PATH"
                     # read -p " we need to know which interface to use (in the future I'll list it with openstack) OS_INTERFACE_PUBLIC: " OS_INTERFACE_PUBLIC
                     # export OS_INTERFACE_PUBLIC
@@ -398,7 +398,7 @@ if [ "$environment" == "openstack" ]; then
                     # envsubst < ./bootstrap_yaml/clouds.TEMPLATE.yaml > $CLUSTOUTFOLDER/clouds.yaml
                     break 
                 else
-                    echo "not found, try again."
+                    echo "$(y_echo NAVARCOS:WARN:) not found, try again."
 
                 fi
                 elif [[ "$choice" == "2" ]]; then
@@ -438,9 +438,9 @@ if [ "$environment" == "openstack" ]; then
         done
 
     fi
-        echo "sourcing admin-openrc.sh..."
+        echo "$(g_echo NAVARCOS:INFO:) sourcing admin-openrc.sh..."
         source admin-openrc.sh
-        echo "retrieving network list..."
+        echo "$(g_echo NAVARCOS:INFO:) retrieving network list..."
         openstack network list -c ID -c Name
         read -p " which interface to use to expose the cluster? (Name is required) OS_INTERFACE_PUBLIC: " OS_INTERFACE_PUBLIC
         export OS_INTERFACE_PUBLIC   
@@ -451,21 +451,34 @@ if [ "$environment" == "openstack" ]; then
         # cat clouds.yaml
         mv "$ADMIN_OPENRC_PATH" $CLUSTOUTFOLDER
         mv clouds.yaml $CLUSTOUTFOLDER
-        
+        echo "$(g_echo NAVARCOS:INFO:) you have to select a flavor size for the virtual machines (temp: same flavor for CP and Workers)"
+        echo "$(g_echo NAVARCOS:INFO:) retrieving flavor list available...(Default view)"
+    sleep 1
+    openstack flavor list
+    echo "$(g_echo NAVARCOS:INFO:) retrieving flavor list available...(Cleura cloud spec name)"
+    sleep 1
+    openstack flavor list -c Name -f value | grep '[0-9]c[0-9]' | sort -V
+    read -p " Which flavor ? (use the name from the list): " OPENSTACK_COMMON_FLAVOR
+    export OPENSTACK_CONTROL_PLANE_MACHINE_FLAVOR=$OPENSTACK_COMMON_FLAVOR
+    export OPENSTACK_NODE_MACHINE_FLAVOR=$OPENSTACK_COMMON_FLAVOR
+
     export OPENSTACK_IMAGE_NAME="ubuntu-2204kube"
     # export OPENSTACK_SSH_KEY_NAME
     # export OPENSTACK_EXTERNAL_NETWORK_ID
     export OPENSTACK_FAILURE_DOMAIN="nova"
     export OPENSTACK_DNS_NAMESERVERS="8.8.8.8"
     # export KUBERNETES_VERSION
-    export OPENSTACK_CONTROL_PLANE_MACHINE_FLAVOR="s.2c4gb50"
-    export OPENSTACK_NODE_MACHINE_FLAVOR="s.2c4gb50 "
-    
-    
+    # export OPENSTACK_CONTROL_PLANE_MACHINE_FLAVOR="s.2c4gb50"
+    # export OPENSTACK_NODE_MACHINE_FLAVOR="s.2c4gb50 "
+    echo "$(g_echo NAVARCOS:INFO:) retrieving images list available..."
+    sleep 1   
+    openstack image list
+    read -p " Which image ? (use the name from the list): " OPENSTACK_IMAGE_NAME
+    export OPENSTACK_IMAGE_NAME
     
     # export OS_DOMAIN_ID="076bf9fb3f2f4095a9662095c499cd63"
     echo "getting network ID"
-    export OPENSTACK_EXTERNAL_NETWORK_ID=$(openstack network list --name ext-net -c ID -f value)
+    export OPENSTACK_EXTERNAL_NETWORK_ID=$(openstack network list --name "$OS_INTERFACE_PUBLIC" -c ID -f value)
     echo "network ID: $OPENSTACK_EXTERNAL_NETWORK_ID "
     
     openstack keypair create --private-key ./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_CLUSTER_NAME}-key ${K8S_CLUSTER_NAME}-key
@@ -732,7 +745,7 @@ while kubectl get secret ${K8S_CLUSTER_NAME}-kubeconfig -n ${K8S_TENANT_NAMESPAC
 done
 # fi
 export TENANTKUBECONFIG="./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig"
-
+  
 while clusterctl get kubeconfig ${K8S_CLUSTER_NAME} -n ${K8S_TENANT_NAMESPACE} > $TENANTKUBECONFIG; [ $? -ne 0 ];do
     sleep 1
     echo "Waiting for the kubeconfig export"
