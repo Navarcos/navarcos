@@ -499,8 +499,7 @@ if [ "$environment" == "openstack" ]; then
     export CLUSTOUTFOLDER="./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}"
     mkdir $CLUSTOUTFOLDER
     # envsubst < ./bootstrap_yaml/admin-openrc.TEMPLATE.sh > ${CLUSTOUTFOLDER}/admin-openrc.sh
-    export TENANTKUBECONFIG="./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig"
-    export TENANTUSERSKUBECONFIG="./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}-users.kubeconfig"
+   
     envsubst < ./bootstrap_yaml/cloud.TEMPLATE.conf > $CLUSTOUTFOLDER/cloud.conf
         
     
@@ -558,7 +557,7 @@ else
 fi
 
 #down there was also: [ "$environment" == "kubevirt" ] ||
-if [ "$environment" == "kubevirtext" ] ;then
+if [ "$environment" == "kubevirtext" ] || [ "$environment" = "kubevirt" ] ;then
     echo "$(g_echo                     NAVARCOS:INFO:) Creating ${K8S_TENANT_NAMESPACE} namespace on Infra cluster"
     if kubectl get ns ${K8S_TENANT_NAMESPACE} --kubeconfig ${INFRAKUBECONFIG} 2>&1; then
         echo "Tenant namespace exist on infra cluster!"
@@ -745,7 +744,7 @@ while kubectl get secret ${K8S_CLUSTER_NAME}-kubeconfig -n ${K8S_TENANT_NAMESPAC
 done
 # fi
 export TENANTKUBECONFIG="./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}.kubeconfig"
-  
+export TENANTUSERSKUBECONFIG="./bootstrap_out/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}/${K8S_TENANT_NAMESPACE}-${K8S_CLUSTER_NAME}-users.kubeconfig"
 while clusterctl get kubeconfig ${K8S_CLUSTER_NAME} -n ${K8S_TENANT_NAMESPACE} > $TENANTKUBECONFIG; [ $? -ne 0 ];do
     sleep 1
     echo "Waiting for the kubeconfig export"
@@ -753,6 +752,9 @@ done
 
 echo fixing permission kubeconfig
 chmod 600 $TENANTKUBECONFIG
+
+
+
 
 
 if [ "$environment" == "kubevirt" ] || [ "$environment" == "kubevirtext" ]; then
