@@ -1,2 +1,6 @@
 controller:
   allowSnippetAnnotations: true
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ""
+  service:
+    type: NodePort
